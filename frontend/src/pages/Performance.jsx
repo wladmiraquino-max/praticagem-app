@@ -1,113 +1,90 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid } from 'recharts'
+import { C, card } from '../theme'
+
+const StatCard = ({ label, value, sub, color }) => (
+  <div style={card({ padding: 20 })}>
+    <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 10 }}>{label}</p>
+    <p style={{ color: color || C.textPrimary, fontSize: 28, fontWeight: 700 }}>{value}</p>
+    {sub && <p style={{ color: C.textDim, fontSize: 12, marginTop: 4 }}>{sub}</p>}
+  </div>
+)
 
 export default function Performance() {
   const [stats, setStats] = useState(null)
-
-  useEffect(() => { api.get('/progress/stats').then((r) => setStats(r.data)) }, [])
-
-  if (!stats) return <div className="p-8 text-gray-400">Carregando...</div>
+  useEffect(() => { api.get('/progress/stats').then(r => setStats(r.data)).catch(() => {}) }, [])
+  if (!stats) return <div style={{ padding: 40, color: C.textMuted }}>Carregando...</div>
 
   const accuracy = Math.round(stats.accuracy * 100)
-  const daysToExam = 525
+  const tt = { contentStyle: { background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: 8 }, labelStyle: { color: C.textMuted }, itemStyle: { color: C.textSecondary } }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Desempenho</h1>
-          <p className="text-sm text-gray-500">Análise completa do seu progresso</p>
-        </div>
+    <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
+      <h1 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Desempenho</h1>
+      <p style={{ color: C.textMuted, fontSize: 13, marginBottom: 20 }}>Análise completa do seu progresso</p>
+
+      <div style={{ background: '#0f1a0a', border: `1px solid ${C.success}33`, borderRadius: 10, padding: '12px 18px', display: 'flex', gap: 8, alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ width: 6, height: 6, borderRadius: '50%', background: C.success }} />
+        <p style={{ color: C.textSecondary, fontSize: 13 }}><strong style={{ color: C.textPrimary }}>525 dias até a prova</strong> — Prático (Praticagem). {accuracy >= 60 && `Com ${accuracy}% de prontidão atual, você estará em ~${Math.min(99, accuracy + 10)}% no dia da prova se mantiver o ritmo.`}</p>
       </div>
 
-      {/* Prova banner */}
-      <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center gap-3 mb-6">
-        <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" />
-        <p className="text-sm text-gray-700">
-          <span className="font-semibold">{daysToExam} dias até a prova</span> — Prático (praticagem).
-          {accuracy >= 60 && ` Com ${accuracy}% de prontidão atual, você estará em torno de ${Math.min(99, accuracy + 10)}% no dia da prova se mantiver o ritmo.`}
-        </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 18 }}>
+        <StatCard label="Total respondidas" value={stats.total_answered} />
+        <StatCard label="Taxa de acerto" value={`${accuracy}%`} color={C.success} sub={`${stats.correct} acertos`} />
+        <StatCard label="Acertos totais" value={stats.correct} sub={`de ${stats.total_answered}`} />
+        <StatCard label="Últimos 7 dias" value={stats.recent_activity?.slice(-7).reduce((s, d) => s + d.total, 0) ?? 0} sub="questões" color={C.accent} />
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Total respondidas', value: stats.total_answered },
-          { label: 'Taxa de acerto', value: `${accuracy}%`, color: 'text-green-600' },
-          { label: 'Acertos totais', value: stats.correct, sub: `de ${stats.total_answered}` },
-          { label: 'Últimos 7 dias', value: stats.recent_activity?.slice(-7).reduce((s, d) => s + d.total, 0) ?? 0, sub: 'questões' },
-        ].map((s) => (
-          <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-5">
-            <p className="text-xs text-gray-400 mb-1">{s.label}</p>
-            <p className={`text-3xl font-bold ${s.color || 'text-gray-900'}`}>{s.value}</p>
-            {s.sub && <p className="text-xs text-gray-400 mt-0.5">{s.sub}</p>}
-          </div>
-        ))}
-      </div>
-
-      {/* Activity chart */}
-      <div className="bg-white border border-gray-100 rounded-xl p-5 mb-6">
-        <h3 className="font-semibold text-gray-900 text-sm mb-4">Atividade — Últimos 30 dias</h3>
+      {/* Activity */}
+      <div style={card({ padding: 20, marginBottom: 16 })}>
+        <h3 style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Atividade — Últimos 30 dias</h3>
         {stats.recent_activity?.length > 0 ? (
-          <ResponsiveContainer width="100%" height={200}>
+          <ResponsiveContainer width="100%" height={180}>
             <AreaChart data={stats.recent_activity}>
               <defs>
-                <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#f97316" stopOpacity={0} />
+                <linearGradient id="grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={C.accent} stopOpacity={0.3} />
+                  <stop offset="95%" stopColor={C.accent} stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(d) => d.slice(5)} />
-              <YAxis tick={{ fontSize: 10 }} width={30} />
-              <Tooltip formatter={(v, n) => [v, n === 'total' ? 'Questões' : 'Corretas']} />
-              <Area type="monotone" dataKey="total" stroke="#f97316" fill="url(#colorTotal)" strokeWidth={2} />
+              <XAxis dataKey="date" tick={{ fontSize: 10, fill: C.textDim }} tickFormatter={d => d.slice(5)} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: C.textDim }} axisLine={false} tickLine={false} width={25} />
+              <Tooltip {...tt} formatter={v => [v, 'Questões']} />
+              <Area type="monotone" dataKey="total" stroke={C.accent} fill="url(#grad)" strokeWidth={2} dot={false} />
             </AreaChart>
           </ResponsiveContainer>
-        ) : (
-          <p className="text-center text-gray-300 py-12 text-sm">Responda questões para ver sua atividade</p>
-        )}
+        ) : <p style={{ color: C.textDim, fontSize: 13, textAlign: 'center', padding: 30 }}>Responda questões para ver sua atividade</p>}
       </div>
 
-      {/* Heatmap placeholder */}
-      <div className="bg-white border border-gray-100 rounded-xl p-5 mb-6">
-        <h3 className="font-semibold text-gray-900 text-sm mb-4">Últimas 16 semanas</h3>
-        <div className="flex gap-1 flex-wrap">
+      {/* Heatmap */}
+      <div style={card({ padding: 20, marginBottom: 16 })}>
+        <h3 style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600, marginBottom: 14 }}>Últimas 16 semanas</h3>
+        <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
           {Array.from({ length: 112 }).map((_, i) => {
-            const dayOffset = 111 - i
-            const dateStr = new Date(Date.now() - dayOffset * 86400000).toISOString().slice(0, 10)
-            const day = stats.recent_activity?.find((d) => d.date === dateStr)
-            const count = day?.total || 0
-            return (
-              <div
-                key={i}
-                title={`${dateStr}: ${count} questões`}
-                className="w-3 h-3 rounded-sm"
-                style={{ backgroundColor: count === 0 ? '#f3f4f6' : count < 5 ? '#fed7aa' : count < 15 ? '#fb923c' : '#ea580c' }}
-              />
-            )
+            const d = new Date(Date.now() - (111 - i) * 86400000).toISOString().slice(0, 10)
+            const n = stats.recent_activity?.find(a => a.date === d)?.total || 0
+            return <div key={i} title={`${d}: ${n} questões`} style={{ width: 12, height: 12, borderRadius: 2, background: n === 0 ? '#1a1a1a' : n < 5 ? '#78350f' : n < 15 ? C.accentHover : C.accent }} />
           })}
         </div>
-        <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
-          <span>Menos</span>
-          {['#f3f4f6','#fed7aa','#fb923c','#ea580c'].map((c) => (
-            <div key={c} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c }} />
-          ))}
-          <span>Mais</span>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
+          <span style={{ color: C.textDim, fontSize: 11 }}>Menos</span>
+          {['#1a1a1a','#78350f', C.accentHover, C.accent].map(c => <div key={c} style={{ width: 10, height: 10, borderRadius: 2, background: c }} />)}
+          <span style={{ color: C.textDim, fontSize: 11 }}>Mais</span>
         </div>
       </div>
 
       {/* By subject */}
       {stats.by_subject?.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-xl p-5">
-          <h3 className="font-semibold text-gray-900 text-sm mb-4">Desempenho por Matéria</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={stats.by_subject.map((s) => ({ name: s.subject.split(' ')[0], pct: Math.round(s.accuracy * 100) }))}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
-              <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} width={30} />
-              <Tooltip formatter={(v) => [`${v}%`, 'Acerto']} />
-              <Bar dataKey="pct" fill="#f97316" radius={[4, 4, 0, 0]} />
+        <div style={card({ padding: 20 })}>
+          <h3 style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Acerto por Matéria</h3>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={stats.by_subject.map(s => ({ name: s.subject.split(' ')[0], pct: Math.round(s.accuracy * 100) }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" />
+              <XAxis dataKey="name" tick={{ fontSize: 10, fill: C.textDim }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: C.textDim }} domain={[0, 100]} axisLine={false} tickLine={false} width={28} />
+              <Tooltip {...tt} formatter={v => [`${v}%`, 'Acerto']} />
+              <Bar dataKey="pct" fill={C.accent} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>

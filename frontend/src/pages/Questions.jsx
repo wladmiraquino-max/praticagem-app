@@ -1,80 +1,62 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
-import { CheckCircle2, XCircle, RotateCcw, Volume2, Star, ChevronRight } from 'lucide-react'
+import { CheckCircle, XCircle, ChevronRight, RotateCcw } from 'lucide-react'
+import { C, card } from '../theme'
+
+const diffColor = { Fácil: { color: C.success, bg: C.successDim }, Médio: { color: C.accent, bg: C.accentDim }, Difícil: { color: C.error, bg: C.errorDim } }
 
 function QuestionCard({ question, onAnswer, result }) {
   const [selected, setSelected] = useState(null)
 
-  const handleSelect = (opt) => {
-    if (result) return
-    setSelected(opt)
+  const optStyle = (opt) => {
+    const base = { width: '100%', textAlign: 'left', padding: '13px 16px', borderRadius: 10, border: '1px solid', cursor: result ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', background: 'transparent', marginBottom: 8 }
+    if (!result) return { ...base, borderColor: selected === opt ? C.accent : C.border, background: selected === opt ? C.accentDim : 'transparent' }
+    if (opt === result.correct) return { ...base, borderColor: C.success, background: C.successDim }
+    if (opt === selected && !result.is_correct) return { ...base, borderColor: C.error, background: C.errorDim }
+    return { ...base, borderColor: '#1a1a1a', opacity: 0.45 }
   }
 
-  const handleConfirm = () => {
-    if (!selected) return
-    onAnswer(selected)
+  const optLabel = (opt) => {
+    if (!result) return { background: selected === opt ? C.accent : '#222', color: selected === opt ? '#000' : C.textDim, border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }
+    if (opt === result.correct) return { background: C.success, color: '#000', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }
+    if (opt === selected && !result.is_correct) return { background: C.error, color: '#fff', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }
+    return { background: '#1a1a1a', color: '#333', border: 'none', width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }
   }
 
-  const optColors = (opt) => {
-    if (!result) {
-      return selected === opt
-        ? 'border-orange-500 bg-orange-50'
-        : 'border-gray-200 hover:border-gray-300 bg-white'
-    }
-    if (opt === result.correct) return 'border-green-500 bg-green-50'
-    if (opt === selected && !result.is_correct) return 'border-red-500 bg-red-50'
-    return 'border-gray-200 bg-white opacity-60'
-  }
+  const dc = diffColor[question.difficulty] || diffColor['Médio']
 
   return (
-    <div className="bg-white rounded-xl border border-gray-100 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-          question.difficulty === 'Fácil' ? 'bg-green-100 text-green-700' :
-          question.difficulty === 'Médio' ? 'bg-yellow-100 text-yellow-700' :
-          'bg-red-100 text-red-700'
-        }`}>{question.difficulty}</span>
-        <span className="text-xs text-gray-400">{question.subject}</span>
+    <div style={card({ padding: 24 })}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, color: dc.color, background: dc.bg }}>{question.difficulty}</span>
+        <span style={{ color: C.textDim, fontSize: 12 }}>{question.subject}</span>
       </div>
 
-      <p className="text-gray-900 font-medium leading-relaxed mb-6">{question.text}</p>
+      <p style={{ color: C.textPrimary, fontSize: 15, lineHeight: 1.65, marginBottom: 20, fontWeight: 400 }}>{question.text}</p>
 
-      <div className="space-y-3 mb-6">
+      <div style={{ marginBottom: 16 }}>
         {Object.entries(question.options).map(([opt, text]) => (
-          <button
-            key={opt}
-            onClick={() => handleSelect(opt)}
-            className={`w-full text-left flex items-center gap-3 p-3.5 rounded-lg border transition-all ${optColors(opt)}`}
-          >
-            <span className="w-7 h-7 rounded-full border-2 border-current flex items-center justify-center text-xs font-bold flex-shrink-0">
-              {opt}
-            </span>
-            <span className="text-sm text-gray-700">{text}</span>
+          <button key={opt} onClick={() => !result && setSelected(opt)} style={optStyle(opt)}>
+            <span style={optLabel(opt)}>{opt}</span>
+            <span style={{ color: result ? (opt === result.correct ? C.success : opt === selected && !result.is_correct ? C.error : C.textDim) : (selected === opt ? C.textPrimary : C.textSecondary), fontSize: 13 }}>{text}</span>
           </button>
         ))}
       </div>
 
       {!result ? (
-        <button
-          onClick={handleConfirm}
-          disabled={!selected}
-          className="w-full bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white font-medium py-3 rounded-lg transition-colors"
-        >
+        <button onClick={() => selected && onAnswer(selected)} disabled={!selected}
+          style={{ width: '100%', padding: '12px', background: selected ? C.accent : '#1a1a1a', color: selected ? '#000' : C.textDim, border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: selected ? 'pointer' : 'default' }}>
           Confirmar resposta
         </button>
       ) : (
-        <div className={`rounded-lg p-4 ${result.is_correct ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-          <div className="flex items-center gap-2 mb-2">
-            {result.is_correct
-              ? <CheckCircle2 size={18} className="text-green-600" />
-              : <XCircle size={18} className="text-red-600" />}
-            <span className={`font-semibold text-sm ${result.is_correct ? 'text-green-700' : 'text-red-700'}`}>
-              {result.is_correct ? 'Correto!' : `Errado — Gabarito: ${result.correct}`}
+        <div style={{ background: result.is_correct ? C.successDim : C.errorDim, border: `1px solid ${result.is_correct ? C.success + '44' : C.error + '44'}`, borderRadius: 10, padding: '12px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: result.explanation ? 8 : 0 }}>
+            {result.is_correct ? <CheckCircle size={15} color={C.success} /> : <XCircle size={15} color={C.error} />}
+            <span style={{ color: result.is_correct ? C.success : C.error, fontWeight: 600, fontSize: 13 }}>
+              {result.is_correct ? 'Correto!' : `Gabarito: alternativa ${result.correct}`}
             </span>
           </div>
-          {result.explanation && (
-            <p className="text-xs text-gray-600 leading-relaxed">{result.explanation}</p>
-          )}
+          {result.explanation && <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.6 }}>{result.explanation}</p>}
         </div>
       )}
     </div>
@@ -91,115 +73,82 @@ export default function Questions() {
   const [subjects, setSubjects] = useState([])
   const [total, setTotal] = useState(0)
 
-  const loadQuestions = async () => {
-    const params = new URLSearchParams({ limit: 10 })
-    if (subject) params.append('subject', subject)
-    if (difficulty) params.append('difficulty', difficulty)
-    if (filter === 'wrong') params.append('filter', 'wrong')
-    const r = await api.get(`/questions?${params}`)
-    setQuestions(r.data)
-    setCurrent(0)
-    setResult(null)
+  const load = async () => {
+    const p = new URLSearchParams({ limit: 10 })
+    if (subject) p.append('subject', subject)
+    if (difficulty) p.append('difficulty', difficulty)
+    if (filter === 'wrong') p.append('filter', 'wrong')
+    const r = await api.get(`/questions?${p}`)
+    setQuestions(r.data); setCurrent(0); setResult(null)
   }
 
   useEffect(() => {
-    api.get('/questions/subjects').then((r) => setSubjects(r.data)).catch(() => {})
-    api.get('/questions/count').then((r) => setTotal(r.data.total)).catch(() => {})
-    loadQuestions()
+    api.get('/questions/subjects').then(r => setSubjects(r.data)).catch(() => {})
+    api.get('/questions/count').then(r => setTotal(r.data.total)).catch(() => {})
+    load()
   }, [])
 
-  useEffect(() => { loadQuestions() }, [filter, subject, difficulty])
+  useEffect(() => { load() }, [filter, subject, difficulty])
 
-  const handleAnswer = async (selected) => {
+  const handleAnswer = async (sel) => {
     const q = questions[current]
-    const r = await api.post(`/questions/${q.id}/answer`, { question_id: q.id, selected })
+    const r = await api.post(`/questions/${q.id}/answer`, { question_id: q.id, selected: sel })
     setResult(r.data)
   }
 
-  const handleNext = () => {
-    setResult(null)
-    if (current < questions.length - 1) {
-      setCurrent(current + 1)
-    } else {
-      loadQuestions()
-    }
-  }
-
-  const tabs = [
-    { key: 'all', label: 'Todas' },
-    { key: 'wrong', label: 'Que errei' },
-  ]
+  const selStyle = { padding: '7px 14px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textSecondary, fontSize: 13, outline: 'none', cursor: 'pointer' }
+  const tabStyle = (active) => ({ padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: active ? 600 : 400, color: active ? C.textPrimary : C.textMuted, background: active ? '#222' : 'transparent', border: 'none', cursor: 'pointer' })
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ padding: '28px 32px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Questões</h1>
-          <p className="text-sm text-gray-500">{total} questões disponíveis</p>
+          <h1 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, marginBottom: 2 }}>Questões</h1>
+          <p style={{ color: C.textMuted, fontSize: 13 }}>{total} questões disponíveis</p>
         </div>
-        <button onClick={loadQuestions} className="flex items-center gap-2 text-sm text-orange-500 border border-orange-200 px-4 py-2 rounded-lg hover:bg-orange-50">
-          <RotateCcw size={14} /> Sessão guiada
+        <button onClick={load} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textSecondary, fontSize: 13, cursor: 'pointer' }}>
+          <RotateCcw size={13} /> Nova sessão
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4 mb-6 flex-wrap">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-          {tabs.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setFilter(t.key)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${filter === t.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              {t.label}
-            </button>
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 2, background: '#111', border: `1px solid ${C.border}`, borderRadius: 9, padding: 3 }}>
+          {[['all','Todas'],['wrong','Que errei']].map(([k,l]) => (
+            <button key={k} onClick={() => setFilter(k)} style={tabStyle(filter === k)}>{l}</button>
           ))}
         </div>
-
-        <select
-          value={difficulty}
-          onChange={(e) => setDifficulty(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
+        <select value={difficulty} onChange={e => setDifficulty(e.target.value)} style={selStyle}>
           <option value="">Todos os níveis</option>
-          <option>Fácil</option>
-          <option>Médio</option>
-          <option>Difícil</option>
+          <option>Fácil</option><option>Médio</option><option>Difícil</option>
         </select>
-
-        <select
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
+        <select value={subject} onChange={e => setSubject(e.target.value)} style={{ ...selStyle, maxWidth: 220 }}>
           <option value="">Todas as matérias</option>
-          {subjects.map((s) => <option key={s}>{s}</option>)}
+          {subjects.map(s => <option key={s}>{s}</option>)}
         </select>
       </div>
 
       {questions.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-100 p-12 text-center">
-          <p className="text-gray-400">Nenhuma questão encontrada com esses filtros.</p>
+        <div style={{ ...card({ padding: 60, textAlign: 'center' }) }}>
+          <p style={{ color: C.textDim }}>Nenhuma questão encontrada com esses filtros.</p>
         </div>
       ) : (
-        <div className="max-w-2xl">
-          <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
-            <span>{current + 1}/{questions.length} (+{total - questions.length})</span>
+        <div style={{ maxWidth: 720 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <p style={{ color: C.textDim, fontSize: 12 }}>{current + 1}/{questions.length}</p>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {questions.map((_, i) => (
+                <div key={i} style={{ width: 24, height: 3, borderRadius: 2, background: i === current ? C.accent : i < current ? C.success : '#222' }} />
+              ))}
+            </div>
           </div>
 
-          <QuestionCard
-            key={questions[current]?.id}
-            question={questions[current]}
-            onAnswer={handleAnswer}
-            result={result}
-          />
+          <QuestionCard key={questions[current]?.id} question={questions[current]} onAnswer={handleAnswer} result={result} />
 
           {result && (
-            <button
-              onClick={handleNext}
-              className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
-            >
-              Próxima questão <ChevronRight size={16} />
+            <button onClick={() => { setResult(null); current < questions.length - 1 ? setCurrent(current + 1) : load() }}
+              style={{ width: '100%', marginTop: 12, padding: '13px', background: C.accent, color: '#000', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              Próxima questão <ChevronRight size={15} />
             </button>
           )}
         </div>

@@ -1,84 +1,54 @@
 import { useEffect, useState, useRef } from 'react'
 import api from '../api'
-import { Upload, Cpu, ChevronRight, Trash2, Sparkles, BookOpen, Brain, X } from 'lucide-react'
+import { Upload, Cpu, Trash2, Sparkles, BookOpen, Brain, X, ExternalLink, ChevronRight } from 'lucide-react'
+import { C, card } from '../theme'
 
-function MaterialDetail({ material, onClose, onGenerateQuestions }) {
+function Detail({ m, onClose }) {
   const [genLoading, setGenLoading] = useState(false)
   const [genMsg, setGenMsg] = useState('')
 
-  const handleGen = async () => {
+  const gen = async () => {
     setGenLoading(true)
-    try {
-      const r = await api.post(`/materials/${material.id}/generate-questions`)
-      setGenMsg(r.data.message)
-    } finally {
-      setGenLoading(false)
-    }
+    try { const r = await api.post(`/materials/${m.id}/generate-questions`); setGenMsg(r.data.message) }
+    finally { setGenLoading(false) }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="font-bold text-gray-900">{material.title}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#111', border: `1px solid ${C.border}`, borderRadius: 16, width: '100%', maxWidth: 640, maxHeight: '88vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
+          <h2 style={{ color: C.textPrimary, fontWeight: 700, fontSize: 16 }}>{m.title}</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted, display: 'flex' }}><X size={18} /></button>
         </div>
-
-        <div className="p-6 space-y-5">
-          {material.subject && (
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">{material.subject}</span>
-              {material.source && <span>Fonte: {material.source}</span>}
+        <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {m.subject && <div style={{ display: 'flex', gap: 8 }}>
+            <span style={{ background: C.accentDim, color: C.accent, fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20 }}>{m.subject}</span>
+          </div>}
+          {m.summary && <div>
+            <p style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Resumo</p>
+            <p style={{ color: C.textSecondary, fontSize: 13, lineHeight: 1.7 }}>{m.summary}</p>
+          </div>}
+          {m.mnemonic && <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 10, padding: 14 }}>
+            <p style={{ color: '#a855f7', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>Mnemônico</p>
+            <p style={{ color: '#c084fc', fontSize: 14, fontWeight: 600, lineHeight: 1.6 }}>{m.mnemonic}</p>
+          </div>}
+          {m.sections?.length > 0 && <div>
+            <p style={{ color: C.accent, fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Seções</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {m.sections.map((s, i) => (
+                <div key={i} style={{ background: '#161616', border: `1px solid ${C.border}`, borderRadius: 9, padding: 14 }}>
+                  <p style={{ color: C.textPrimary, fontWeight: 600, fontSize: 13, marginBottom: 6 }}>{s.title}</p>
+                  <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.6, marginBottom: s.key_points?.length ? 8 : 0 }}>{s.content}</p>
+                  {s.key_points?.map((kp, j) => <p key={j} style={{ color: C.textMuted, fontSize: 12, paddingLeft: 10, borderLeft: `2px solid ${C.accent}`, marginBottom: 4 }}>{kp}</p>)}
+                </div>
+              ))}
             </div>
-          )}
-
-          {material.summary && (
-            <div>
-              <h3 className="font-semibold text-gray-800 text-sm mb-2 flex items-center gap-2"><BookOpen size={14} /> Resumo</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{material.summary}</p>
-            </div>
-          )}
-
-          {material.mnemonic && (
-            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-              <h3 className="font-semibold text-purple-800 text-sm mb-2 flex items-center gap-2"><Brain size={14} /> Mnemônico</h3>
-              <p className="text-sm text-purple-700 leading-relaxed font-medium">{material.mnemonic}</p>
-            </div>
-          )}
-
-          {material.sections?.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-gray-800 text-sm mb-3 flex items-center gap-2"><Sparkles size={14} /> Seções</h3>
-              <div className="space-y-3">
-                {material.sections.map((s, i) => (
-                  <div key={i} className="border border-gray-100 rounded-lg p-4">
-                    <h4 className="font-medium text-gray-900 text-sm mb-2">{s.title}</h4>
-                    <p className="text-xs text-gray-600 mb-2">{s.content}</p>
-                    {s.key_points?.length > 0 && (
-                      <ul className="space-y-1">
-                        {s.key_points.map((kp, j) => (
-                          <li key={j} className="text-xs text-gray-500 flex items-start gap-1.5">
-                            <span className="text-orange-400 mt-0.5">•</span>{kp}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="pt-2">
+          </div>}
+          <div>
             {genMsg
-              ? <p className="text-sm text-green-600 bg-green-50 px-4 py-3 rounded-lg">{genMsg}</p>
-              : <button
-                  onClick={handleGen}
-                  disabled={genLoading}
-                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-3 rounded-xl flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
-                >
-                  <Sparkles size={16} />
-                  {genLoading ? 'Gerando questões...' : 'Gerar questões deste material'}
+              ? <p style={{ color: C.success, fontSize: 13, background: C.successDim, border: `1px solid ${C.success}33`, borderRadius: 9, padding: '10px 14px' }}>{genMsg}</p>
+              : <button onClick={gen} disabled={genLoading} style={{ width: '100%', padding: '12px', background: C.accent, color: '#000', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: genLoading ? 0.6 : 1 }}>
+                  <Sparkles size={14} />{genLoading ? 'Gerando...' : 'Gerar questões deste material'}
                 </button>
             }
           </div>
@@ -95,84 +65,66 @@ export default function Materials() {
   const [subject, setSubject] = useState('')
   const fileRef = useRef()
 
-  const load = () => api.get('/materials').then((r) => setMaterials(r.data))
+  const load = () => api.get('/materials').then(r => setMaterials(r.data))
   useEffect(() => { load() }, [])
 
-  const handleUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
+  const upload = async (e) => {
+    const file = e.target.files[0]; if (!file) return
     setUploading(true)
-    const form = new FormData()
-    form.append('file', file)
-    if (subject) form.append('subject', subject)
-    try {
-      await api.post('/materials/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-      await load()
-    } finally {
-      setUploading(false)
-      if (fileRef.current) fileRef.current.value = ''
-    }
+    const form = new FormData(); form.append('file', file); if (subject) form.append('subject', subject)
+    try { await api.post('/materials/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }); await load() }
+    finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
   }
 
-  const handleDelete = async (id) => {
-    await api.delete(`/materials/${id}`)
-    setMaterials(materials.filter((m) => m.id !== id))
-  }
+  const del = async (id) => { await api.delete(`/materials/${id}`); setMaterials(m => m.filter(x => x.id !== id)) }
+
+  const subjects = ['Manobra','Arte Naval','Arquitetura Naval','Meteorologia e Oceanografia','Legislação Marítima','Navegação e Radar','Comunicações','Segurança da Navegação','Normas e Publicações','Gestão e Procedimentos','Sistemas e Equipamentos','Conhecimentos Portuários','Conhecimentos Gerais']
 
   return (
-    <div className="p-8">
-      {selected && <MaterialDetail material={selected} onClose={() => setSelected(null)} />}
+    <div style={{ padding: '28px 32px' }}>
+      {selected && <Detail m={selected} onClose={() => setSelected(null)} />}
 
-      <div className="flex items-center justify-between mb-6">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 22 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Materiais de Estudo</h1>
-          <p className="text-sm text-gray-500">Envie PDFs ou textos — a IA processa e gera resumo, mnemônico e questões</p>
+          <h1 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, marginBottom: 3 }}>Materiais de Estudo</h1>
+          <p style={{ color: C.textMuted, fontSize: 13 }}>Envie PDFs ou textos — a IA gera resumo, mnemônico e questões</p>
         </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-            className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none"
-          >
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <a href="https://stitch.withgoogle.com/" target="_blank" rel="noopener noreferrer"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textMuted, fontSize: 12, textDecoration: 'none' }}>
+            <ExternalLink size={12} /> Google Stitch
+          </a>
+          <select value={subject} onChange={e => setSubject(e.target.value)} style={{ padding: '8px 12px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textSecondary, fontSize: 13, outline: 'none' }}>
             <option value="">Selecione a matéria</option>
-            {['Manobra','Arte Naval','Arquitetura Naval','Meteorologia e Oceanografia','Legislação Marítima','Navegação e Radar','Comunicações','Segurança da Navegação','Normas e Publicações','Gestão e Procedimentos','Sistemas e Equipamentos','Conhecimentos Portuários','Conhecimentos Gerais'].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
+            {subjects.map(s => <option key={s}>{s}</option>)}
           </select>
-          <label className={`flex items-center gap-2 ${uploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'} bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors`}>
-            {uploading ? <><Cpu size={16} className="animate-spin" /> Processando...</> : <><Upload size={16} /> Enviar material</>}
-            <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={handleUpload} className="hidden" disabled={uploading} />
+          <label style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', background: uploading ? '#1a1a1a' : C.accent, color: uploading ? C.textMuted : '#000', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: uploading ? 'not-allowed' : 'pointer' }}>
+            {uploading ? <><Cpu size={13} style={{ animation: 'spin 1s linear infinite' }} /> Processando...</> : <><Upload size={13} /> Enviar material</>}
+            <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={upload} style={{ display: 'none' }} disabled={uploading} />
           </label>
         </div>
       </div>
 
       {materials.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-16 text-center">
-          <Upload size={32} className="text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-400 font-medium">Nenhum material ainda</p>
-          <p className="text-sm text-gray-400 mt-1">Envie um PDF ou texto para começar</p>
+        <div style={{ ...card({ padding: 60, textAlign: 'center', border: `1px dashed ${C.border}` }) }}>
+          <Upload size={28} color={C.textDim} style={{ margin: '0 auto 12px' }} />
+          <p style={{ color: C.textMuted, fontWeight: 600, fontSize: 14 }}>Nenhum material ainda</p>
+          <p style={{ color: C.textDim, fontSize: 13, marginTop: 4 }}>Envie um PDF ou texto para começar</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {materials.map((m) => (
-            <div key={m.id} className="bg-white rounded-xl border border-gray-100 p-5 hover:border-orange-200 transition-colors">
-              <div className="flex items-start justify-between mb-3">
-                <span className="text-xs font-medium text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Cpu size={10} /> Processado por IA
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14 }}>
+          {materials.map(m => (
+            <div key={m.id} style={card({ padding: 18 })}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <span style={{ background: C.accentDim, color: C.accent, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <Cpu size={9} /> Processado por IA
                 </span>
-                <button onClick={() => handleDelete(m.id)} className="text-gray-300 hover:text-red-400 transition-colors">
-                  <Trash2 size={14} />
-                </button>
+                <button onClick={() => del(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textDim, display: 'flex' }}><Trash2 size={13} /></button>
               </div>
-              <h3 className="font-semibold text-gray-900 text-sm mb-1">{m.title}</h3>
-              {m.subject && <p className="text-xs text-gray-400 mb-1">Disciplina: {m.subject}</p>}
-              {m.source && <p className="text-xs text-gray-400 mb-3 truncate">Fonte: {m.source}</p>}
-              {m.summary && <p className="text-xs text-gray-500 line-clamp-2 mb-3">{m.summary}</p>}
-              <button
-                onClick={() => setSelected(m)}
-                className="flex items-center gap-1 text-orange-500 text-xs font-medium hover:underline"
-              >
+              <p style={{ color: C.textPrimary, fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{m.title}</p>
+              {m.subject && <p style={{ color: C.accent, fontSize: 11, marginBottom: 3 }}>Disciplina: {m.subject}</p>}
+              {m.summary && <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 10 }}>{m.summary}</p>}
+              <button onClick={() => setSelected(m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.accent, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
                 Ver detalhes <ChevronRight size={12} />
               </button>
             </div>

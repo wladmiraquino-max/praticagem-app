@@ -1,72 +1,49 @@
 import { useEffect, useState, useRef } from 'react'
 import api from '../api'
 import { Send, Bot, User, ChevronDown } from 'lucide-react'
+import { C, card } from '../theme'
 
 export default function Tutor() {
   const [agents, setAgents] = useState([])
-  const [activeAgent, setActiveAgent] = useState(null)
+  const [active, setActive] = useState(null)
   const [history, setHistory] = useState([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [showAgents, setShowAgents] = useState(false)
   const bottomRef = useRef()
 
   useEffect(() => {
-    api.get('/tutor/agents').then((r) => {
-      setAgents(r.data)
-      if (r.data.length > 0) setActiveAgent(r.data[0])
-    })
+    api.get('/tutor/agents').then(r => { setAgents(r.data); if (r.data.length > 0) setActive(r.data[0]) })
   }, [])
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [history])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [history])
 
-  const handleAgentChange = (agent) => {
-    setActiveAgent(agent)
-    setHistory([])
-  }
-
-  const handleSend = async () => {
-    if (!input.trim() || !activeAgent) return
-    const msg = input.trim()
-    setInput('')
-    const userMsg = { role: 'user', content: msg }
-    const newHistory = [...history, userMsg]
-    setHistory(newHistory)
-    setLoading(true)
+  const send = async () => {
+    if (!input.trim() || !active) return
+    const msg = input.trim(); setInput('')
+    const newH = [...history, { role: 'user', content: msg }]
+    setHistory(newH); setLoading(true)
     try {
-      const apiHistory = newHistory.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))
-      const r = await api.post('/tutor/chat', {
-        agent_id: activeAgent.id,
-        message: msg,
-        history: apiHistory,
-      })
-      setHistory([...newHistory, { role: 'assistant', content: r.data.response }])
-    } finally {
-      setLoading(false)
-    }
+      const r = await api.post('/tutor/chat', { agent_id: active.id, message: msg, history: newH.slice(0, -1) })
+      setHistory([...newH, { role: 'assistant', content: r.data.response }])
+    } finally { setLoading(false) }
   }
+
+  const suggestions = ['Explique os critérios IMO para manobras', 'Gere 3 questões de múltipla escolha', 'Crie um mnemônico para memorizar']
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Agent selector */}
-      <div className="w-64 bg-white border-r border-gray-100 flex flex-col">
-        <div className="p-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900 text-sm">Agentes Especialistas</h2>
-          <p className="text-xs text-gray-400 mt-0.5">14 agentes disponíveis</p>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      {/* Sidebar de agentes */}
+      <div style={{ width: 220, background: '#0e0e0e', borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${C.border}` }}>
+          <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600 }}>Agentes Especialistas</p>
+          <p style={{ color: C.textDim, fontSize: 11, marginTop: 2 }}>14 agentes disponíveis</p>
         </div>
-        <div className="flex-1 overflow-y-auto py-2">
-          {agents.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => handleAgentChange(a)}
-              className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
-                activeAgent?.id === a.id
-                  ? 'bg-orange-50 text-orange-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <span className="text-xs text-gray-400 mr-2">#{a.id}</span>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
+          {agents.map(a => (
+            <button key={a.id} onClick={() => { setActive(a); setHistory([]) }}
+              style={{ width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 7, border: 'none', cursor: 'pointer', background: active?.id === a.id ? C.accentDim : 'transparent', color: active?.id === a.id ? C.accent : C.textMuted, fontSize: 12, display: 'flex', alignItems: 'center', gap: 7, marginBottom: 2 }}>
+              <span style={{ color: C.textDim, fontSize: 10, fontWeight: 700, minWidth: 16 }}>#{a.id}</span>
               {a.name}
             </button>
           ))}
@@ -74,71 +51,55 @@ export default function Tutor() {
       </div>
 
       {/* Chat */}
-      <div className="flex-1 flex flex-col bg-gray-50">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: C.bg }}>
         {/* Header */}
-        <div className="bg-white border-b border-gray-100 px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-orange-100 rounded-lg flex items-center justify-center">
-              <Bot size={18} className="text-orange-600" />
-            </div>
-            <div>
-              <p className="font-semibold text-gray-900 text-sm">{activeAgent?.name || 'Selecione um agente'}</p>
-              <p className="text-xs text-gray-400">{activeAgent?.subject}</p>
-            </div>
+        <div style={{ background: '#0e0e0e', borderBottom: `1px solid ${C.border}`, padding: '14px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, background: C.accentDim, border: `1px solid ${C.accentBorder}`, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Bot size={16} color={C.accent} />
+          </div>
+          <div>
+            <p style={{ color: C.textPrimary, fontWeight: 600, fontSize: 14 }}>{active?.name || 'Selecione um agente'}</p>
+            <p style={{ color: C.textDim, fontSize: 12 }}>{active?.subject}</p>
           </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div style={{ flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
           {history.length === 0 && (
-            <div className="text-center py-12">
-              <Bot size={40} className="text-gray-200 mx-auto mb-3" />
-              <p className="text-gray-400 text-sm">Pergunte sobre {activeAgent?.subject || 'qualquer tema do concurso'}</p>
-              <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                {['Explique os critérios IMO para manobras', 'Gere 3 questões de múltipla escolha', 'Crie um mnemônico para lembrar'].map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => setInput(s)}
-                    className="text-xs bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-full hover:border-orange-300 hover:text-orange-600 transition-colors"
-                  >
-                    {s}
-                  </button>
+            <div style={{ textAlign: 'center', paddingTop: 40 }}>
+              <Bot size={36} color={C.textDim} style={{ margin: '0 auto 12px' }} />
+              <p style={{ color: C.textDim, fontSize: 13, marginBottom: 16 }}>Pergunte sobre {active?.subject || 'qualquer tema do concurso'}</p>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+                {suggestions.map(s => (
+                  <button key={s} onClick={() => setInput(s)} style={{ background: '#111', border: `1px solid ${C.border}`, borderRadius: 20, padding: '6px 14px', color: C.textMuted, fontSize: 12, cursor: 'pointer' }}>{s}</button>
                 ))}
               </div>
             </div>
           )}
           {history.map((msg, i) => (
-            <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} style={{ display: 'flex', gap: 10, justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
               {msg.role === 'assistant' && (
-                <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Bot size={14} className="text-orange-600" />
+                <div style={{ width: 30, height: 30, background: C.accentDim, border: `1px solid ${C.accentBorder}`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                  <Bot size={13} color={C.accent} />
                 </div>
               )}
-              <div className={`max-w-[70%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
-                msg.role === 'user'
-                  ? 'bg-orange-500 text-white rounded-br-sm'
-                  : 'bg-white border border-gray-100 text-gray-800 rounded-bl-sm'
-              }`}>
-                {msg.content}
+              <div style={{ maxWidth: '72%', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px', padding: '10px 14px', background: msg.role === 'user' ? C.accent : '#1a1a1a', border: msg.role === 'assistant' ? `1px solid ${C.border}` : 'none' }}>
+                <p style={{ color: msg.role === 'user' ? '#000' : C.textSecondary, fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
               </div>
               {msg.role === 'user' && (
-                <div className="w-8 h-8 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <User size={14} className="text-gray-600" />
+                <div style={{ width: 30, height: 30, background: '#222', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                  <User size={13} color={C.textMuted} />
                 </div>
               )}
             </div>
           ))}
           {loading && (
-            <div className="flex gap-3">
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Bot size={14} className="text-orange-600" />
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ width: 30, height: 30, background: C.accentDim, border: `1px solid ${C.accentBorder}`, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Bot size={13} color={C.accent} />
               </div>
-              <div className="bg-white border border-gray-100 rounded-2xl rounded-bl-sm px-4 py-3">
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
+              <div style={{ background: '#1a1a1a', border: `1px solid ${C.border}`, borderRadius: '14px 14px 14px 4px', padding: '12px 16px', display: 'flex', gap: 4, alignItems: 'center' }}>
+                {[0,150,300].map(d => <div key={d} style={{ width: 6, height: 6, borderRadius: '50%', background: C.textDim, animation: 'bounce 1s infinite', animationDelay: `${d}ms` }} />)}
               </div>
             </div>
           )}
@@ -146,23 +107,13 @@ export default function Tutor() {
         </div>
 
         {/* Input */}
-        <div className="bg-white border-t border-gray-100 p-4">
-          <div className="flex gap-3">
-            <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-              placeholder={`Pergunte ao ${activeAgent?.name || 'agente'}...`}
-              className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-            />
-            <button
-              onClick={handleSend}
-              disabled={loading || !input.trim()}
-              className="bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white px-4 py-3 rounded-xl transition-colors"
-            >
-              <Send size={16} />
-            </button>
-          </div>
+        <div style={{ background: '#0e0e0e', borderTop: `1px solid ${C.border}`, padding: '14px 20px', display: 'flex', gap: 10 }}>
+          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
+            placeholder={`Perguntar ao ${active?.name || 'agente'}...`}
+            style={{ flex: 1, padding: '11px 16px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 10, color: C.textPrimary, fontSize: 14, outline: 'none' }} />
+          <button onClick={send} disabled={loading || !input.trim()} style={{ padding: '11px 16px', background: input.trim() ? C.accent : '#1a1a1a', color: input.trim() ? '#000' : C.textDim, border: 'none', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <Send size={15} />
+          </button>
         </div>
       </div>
     </div>

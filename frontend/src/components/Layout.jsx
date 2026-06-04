@@ -1,13 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, Heart, LogOut, Anchor, FileText } from 'lucide-react'
-
-const S = {
-  sidebar: { width: 230, background: '#111111', borderRight: '1px solid #1f1f1f', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50 },
-  logo: { display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 18px', borderBottom: '1px solid #1f1f1f' },
-  navSection: { padding: '8px 10px 4px', fontSize: 10, fontWeight: 700, color: '#525252', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 },
-  navItem: (active) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', color: active ? '#fff' : '#737373', background: active ? 'rgba(220,38,38,0.12)' : 'transparent', margin: '1px 0', transition: 'all 0.15s' }),
-}
+import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, LogOut, Anchor } from 'lucide-react'
+import { C } from '../theme'
 
 const mainNav = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -27,58 +21,66 @@ export default function Layout({ children }) {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
 
+  const navItem = (active) => ({
+    display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px',
+    borderRadius: 8, fontSize: 13, fontWeight: active ? 600 : 400,
+    cursor: 'pointer', textDecoration: 'none',
+    color: active ? C.textPrimary : C.textMuted,
+    background: active ? C.accentDim : 'transparent',
+    borderLeft: active ? `2px solid ${C.accent}` : '2px solid transparent',
+    margin: '1px 0', transition: 'all 0.12s',
+  })
+
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a' }}>
-      <aside style={S.sidebar}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.bg }}>
+      <aside style={{ width: 220, background: C.sidebar, borderRight: `1px solid ${C.borderSubtle}`, display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50 }}>
         {/* Logo */}
-        <div style={S.logo}>
-          <div style={{ width: 30, height: 30, background: '#dc2626', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Anchor size={15} color="#fff" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '18px 16px 16px', borderBottom: `1px solid ${C.borderSubtle}` }}>
+          <div style={{ width: 28, height: 28, background: C.accent, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Anchor size={14} color="#000" />
           </div>
-          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Praticagem<span style={{ color: '#dc2626' }}>Study</span></span>
+          <span style={{ color: C.textPrimary, fontWeight: 700, fontSize: 14 }}>Praticagem<span style={{ color: C.accent }}>Study</span></span>
         </div>
 
         {/* Nav */}
-        <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
+        <nav style={{ flex: 1, padding: '8px 8px', overflowY: 'auto' }}>
           {mainNav.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} style={({ isActive }) => S.navItem(isActive)}>
-              <Icon size={15} />
-              {label}
+            <NavLink key={to} to={to} style={({ isActive }) => navItem(isActive)}>
+              <Icon size={14} />{label}
             </NavLink>
           ))}
 
-          <div style={S.navSection}>Análise</div>
+          <div style={{ padding: '12px 10px 6px', fontSize: 10, fontWeight: 700, color: C.textDim, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Análise</div>
 
           {analysisNav.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} style={({ isActive }) => S.navItem(isActive)}>
-              <Icon size={15} />
-              {label}
+            <NavLink key={to} to={to} style={({ isActive }) => navItem(isActive)}>
+              <Icon size={14} />{label}
             </NavLink>
           ))}
         </nav>
 
-        {/* Bottom: exam info + user */}
-        <div style={{ borderTop: '1px solid #1f1f1f' }}>
-          <div style={{ padding: '10px 16px', borderBottom: '1px solid #1f1f1f' }}>
-            <p style={{ color: '#525252', fontSize: 11 }}>Concurso Prático · DPC · Marinha</p>
-            <p style={{ color: '#737373', fontSize: 11, marginTop: 2 }}>Prova prevista: out/nov 2027</p>
+        {/* Exam info */}
+        <div style={{ borderTop: `1px solid ${C.borderSubtle}`, padding: '10px 14px', borderBottom: `1px solid ${C.borderSubtle}` }}>
+          <p style={{ color: C.textDim, fontSize: 11 }}>Prático · DPC · Marinha do Brasil</p>
+          <p style={{ color: C.textMuted, fontSize: 11, marginTop: 1 }}>Prova prevista: out/nov 2027</p>
+        </div>
+
+        {/* User */}
+        <div style={{ padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 9 }}>
+          <div style={{ width: 28, height: 28, background: C.accentDim, border: `1px solid ${C.accentBorder}`, borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center', color: C.accent, fontWeight: 700, fontSize: 12, flexShrink: 0 }}>
+            {user?.name?.[0]?.toUpperCase() || 'U'}
           </div>
-          <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 30, height: 30, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
-              {user?.name?.[0]?.toUpperCase() || 'U'}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ color: '#e5e5e5', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</p>
-              <p style={{ color: '#dc2626', fontSize: 11 }}>premium</p>
-            </div>
-            <button onClick={() => { logout(); navigate('/login') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#525252', display: 'flex', padding: 4 }}>
-              <LogOut size={14} />
-            </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ color: C.textPrimary, fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</p>
+            <p style={{ color: C.accent, fontSize: 11 }}>premium</p>
           </div>
+          <button onClick={() => { logout(); navigate('/login') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textDim, display: 'flex', padding: 3 }}>
+            <LogOut size={13} />
+          </button>
         </div>
       </aside>
 
-      <main style={{ flex: 1, marginLeft: 230, minHeight: '100vh', background: '#0a0a0a' }}>
+      <main style={{ flex: 1, marginLeft: 220, minHeight: '100vh', background: C.bg }}>
         {children}
       </main>
     </div>

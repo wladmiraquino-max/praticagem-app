@@ -1,93 +1,82 @@
 import { useEffect, useState } from 'react'
 import api from '../api'
-import { Map, Sparkles, CheckCircle2, Calendar, RefreshCw } from 'lucide-react'
+import { Map, Sparkles, CheckCircle, Calendar, RefreshCw } from 'lucide-react'
+import { C, card } from '../theme'
 
 export default function StudyTrail() {
   const [trail, setTrail] = useState(null)
   const [loading, setLoading] = useState(false)
 
-  const load = () => api.get('/trail').then((r) => setTrail(r.data)).catch(() => {})
-  useEffect(() => { load() }, [])
+  useEffect(() => { api.get('/trail').then(r => setTrail(r.data)).catch(() => {}) }, [])
 
   const generate = async () => {
     setLoading(true)
-    try {
-      const r = await api.post('/trail/generate')
-      setTrail(r.data)
-    } finally {
-      setLoading(false)
-    }
+    try { const r = await api.post('/trail/generate'); setTrail(r.data) }
+    finally { setLoading(false) }
   }
 
   const sprints = trail?.sprints || []
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div style={{ padding: '28px 32px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 22 }}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Trilha de Estudos</h1>
-          <p className="text-sm text-gray-500">Plano personalizado de 4 semanas gerado por IA</p>
+          <h1 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, marginBottom: 3 }}>Trilha de Estudos</h1>
+          <p style={{ color: C.textMuted, fontSize: 13 }}>Plano personalizado de 4 semanas gerado por IA</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {trail?.next_at && (
-            <div className="flex items-center gap-1.5 text-xs text-gray-400 border border-gray-200 px-3 py-1.5 rounded-lg">
-              <Calendar size={12} />
-              Nova trilha em {new Date(trail.next_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textMuted, fontSize: 12 }}>
+              <Calendar size={12} /> Nova em {new Date(trail.next_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
             </div>
           )}
-          <button
-            onClick={generate}
-            disabled={loading}
-            className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-          >
-            {loading ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />}
+          <button onClick={generate} disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', background: C.accent, color: '#000', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+            {loading ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Sparkles size={13} />}
             {loading ? 'Gerando...' : sprints.length === 0 ? 'Gerar trilha' : 'Atualizar trilha'}
           </button>
         </div>
       </div>
 
       {sprints.length === 0 ? (
-        <div className="bg-white border border-dashed border-gray-300 rounded-xl p-16 text-center">
-          <Map size={40} className="text-gray-200 mx-auto mb-3" />
-          <p className="font-medium text-gray-400">Nenhuma trilha gerada</p>
-          <p className="text-sm text-gray-400 mt-1">Clique em "Gerar trilha" para criar seu plano de estudos personalizado</p>
+        <div style={{ ...card({ padding: 60, textAlign: 'center', border: `1px dashed ${C.border}` }) }}>
+          <Map size={32} color={C.textDim} style={{ margin: '0 auto 12px' }} />
+          <p style={{ color: C.textMuted, fontWeight: 600, fontSize: 14 }}>Nenhuma trilha gerada</p>
+          <p style={{ color: C.textDim, fontSize: 13, marginTop: 4 }}>Clique em "Gerar trilha" para criar seu plano personalizado</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {sprints.map((sprint, i) => (
-            <div key={i} className="bg-white border border-gray-100 rounded-xl p-6">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <span className="font-bold text-orange-600 text-sm">{sprint.sprint}</span>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {sprints.map((s, i) => (
+            <div key={i} style={card({ padding: 22 })}>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                <div style={{ width: 40, height: 40, background: C.accentDim, border: `1px solid ${C.accentBorder}`, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ color: C.accent, fontWeight: 700, fontSize: 13 }}>{s.sprint}</span>
                 </div>
-                <div className="flex-1">
-                  <h3 className="font-bold text-gray-900 mb-1">{sprint.title}</h3>
-                  <p className="text-sm text-gray-500 mb-4">{sprint.description}</p>
-
-                  {sprint.subjects?.length > 0 && (
-                    <div className="flex gap-2 flex-wrap mb-4">
-                      <span className="text-xs text-gray-400 mr-1">DISCIPLINAS</span>
-                      {sprint.subjects.map((s) => (
-                        <span key={s} className="bg-orange-50 text-orange-700 text-xs px-2.5 py-0.5 rounded-full font-medium">{s}</span>
+                <div style={{ flex: 1 }}>
+                  <p style={{ color: C.textPrimary, fontWeight: 700, fontSize: 15, marginBottom: 4 }}>{s.title}</p>
+                  <p style={{ color: C.textSecondary, fontSize: 13, marginBottom: 12, lineHeight: 1.6 }}>{s.description}</p>
+                  {s.subjects?.length > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+                      <span style={{ color: C.textDim, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em' }}>Disciplinas:</span>
+                      {s.subjects.map(sub => (
+                        <span key={sub} style={{ background: C.accentDim, color: C.accent, fontSize: 11, fontWeight: 600, padding: '2px 9px', borderRadius: 20 }}>{sub}</span>
                       ))}
                     </div>
                   )}
-
-                  {sprint.daily_goal && (
-                    <div className="flex items-center gap-2 text-xs text-gray-500 mb-4 bg-gray-50 px-3 py-2 rounded-lg w-fit">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-                      Meta diária: <span className="font-medium">{sprint.daily_goal}</span>
+                  {s.daily_goal && (
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, padding: '5px 12px', marginBottom: 12 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.accent }} />
+                      <span style={{ color: C.textSecondary, fontSize: 12 }}>Meta diária: <strong style={{ color: C.textPrimary }}>{s.daily_goal}</strong></span>
                     </div>
                   )}
-
-                  {sprint.tasks?.length > 0 && (
+                  {s.tasks?.length > 0 && (
                     <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">O que fazer</p>
-                      <div className="space-y-2">
-                        {sprint.tasks.map((task, j) => (
-                          <div key={j} className="flex items-start gap-2">
-                            <CheckCircle2 size={14} className="text-orange-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-gray-700">{task}</p>
+                      <p style={{ color: C.textDim, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 8 }}>O que fazer</p>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        {s.tasks.map((t, j) => (
+                          <div key={j} style={{ display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                            <CheckCircle size={13} color={C.accent} style={{ flexShrink: 0, marginTop: 2 }} />
+                            <p style={{ color: C.textSecondary, fontSize: 13, lineHeight: 1.5 }}>{t}</p>
                           </div>
                         ))}
                       </div>
