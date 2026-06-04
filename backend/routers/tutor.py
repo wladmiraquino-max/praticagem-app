@@ -27,9 +27,18 @@ def chat(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    response = ai_service.chat_with_agent(
-        agent_id=payload.agent_id,
-        message=payload.message,
-        history=payload.history or [],
-    )
-    return {"response": response, "agent_id": payload.agent_id}
+    from fastapi import HTTPException
+    try:
+        response = ai_service.chat_with_agent(
+            agent_id=payload.agent_id,
+            message=payload.message,
+            history=payload.history or [],
+        )
+        return {"response": response, "agent_id": payload.agent_id}
+    except Exception as e:
+        err = str(e)
+        if "api_key" in err.lower() or "authentication" in err.lower():
+            raise HTTPException(status_code=503, detail="ANTHROPIC_API_KEY inválida ou não configurada no servidor.")
+        if "credit" in err.lower() or "billing" in err.lower() or "quota" in err.lower():
+            raise HTTPException(status_code=503, detail="Saldo insuficiente na conta Anthropic. Adicione créditos em console.anthropic.com")
+        raise HTTPException(status_code=500, detail=f"Erro IA: {err[:300]}")
