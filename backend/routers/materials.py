@@ -38,61 +38,81 @@ async def upload_material(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    # Extract text
+    MAX_SIZE = 15 * 1024 * 1024  # 15 MB
     content = ""
     filename = file.filename or "material"
+
+    raw = await file.read()
+    if len(raw) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail=f"Arquivo muito grande ({len(raw)//1024//1024}MB). Limite: 15MB. Use uma versão resumida do PDF.")
+
     if filename.lower().endswith(".pdf"):
-        raw = await file.read()
-        tmp_path = os.path.join(UPLOAD_DIR, f"tmp_{current_user.id}_{filename}")
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        with open(tmp_path, "wb") as f:
-            f.write(raw)
-        with pdfplumber.open(tmp_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    content += text + "\n"
-        os.remove(tmp_path)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(raw)
+            tmp_path = tmp.name
+        try:
+            with pdfplumber.open(tmp_path) as pdf:
+                for page in pdf.pages[:40]:
+                    text = page.extract_text()
+                    if text:
+                        content += text + "\n"
+        finally:
+            os.unlink(tmp_path)
     else:
-        raw = await file.read()
         content = raw.decode("utf-8", errors="ignore")
 
     if not content.strip():
         raise HTTPException(status_code=400, detail="Não foi possível extrair texto do arquivo")
 
-    # AI processing
     title = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
-    processed = ai_service.process_material(title, content, subject or "Praticagem")
 
+    # Salva imediatamente sem IA — resumo gerado sob demanda via /process
     material = models.Material(
         user_id=current_user.id,
         title=title,
         subject=subject,
         source=filename,
-        content=content[:10000],
-        summary=processed.get("summary", ""),
-        mnemonic=processed.get("mnemonic", ""),
-        sections=processed.get("sections", []),
+        content=content[:15000],
+        summary="",
+        mnemonic="",
+        sections=[],
     )
     db.add(material)
+    db.commit()
+    db.refresh(material)
+    return material
 
-    # Add knowledge nodes from concepts
+
+@router.post("/{material_id}/process")
+def process_material_ai(
+    material_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Gera resumo, mnemônico e seções via IA (chamado após o upload)."""
+    m = db.query(models.Material).filter(
+        models.Material.id == material_id,
+        models.Material.user_id == current_user.id,
+    ).first()
+    if not m:
+        raise HTTPException(status_code=404, detail="Material não encontrado")
+
+    processed = ai_service.process_material(m.title, m.content or "", m.subject or "Praticagem")
+    m.summary = processed.get("summary", "")
+    m.mnemonic = processed.get("mnemonic", "")
+    m.sections = processed.get("sections", [])
+
     for concept in processed.get("concepts", [])[:10]:
         node = db.query(models.KnowledgeNode).filter(
             models.KnowledgeNode.user_id == current_user.id,
             models.KnowledgeNode.concept == concept,
         ).first()
         if not node:
-            db.add(models.KnowledgeNode(
-                user_id=current_user.id,
-                concept=concept,
-                subject=subject or "Geral",
-                mastery=0,
-            ))
+            db.add(models.KnowledgeNode(user_id=current_user.id, concept=concept, subject=m.subject or "Geral", mastery=0))
 
     db.commit()
-    db.refresh(material)
-    return material
+    return {"message": "Resumo gerado com sucesso", "title": m.title}
 
 
 @router.post("/{material_id}/generate-questions")

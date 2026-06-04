@@ -24,23 +24,28 @@ async def upload_book(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
+    MAX_SIZE = 15 * 1024 * 1024  # 15 MB
     filename = file.filename or "caderno"
     content = ""
 
+    raw = await file.read()
+    if len(raw) > MAX_SIZE:
+        raise HTTPException(status_code=400, detail=f"Arquivo muito grande ({len(raw)//1024//1024}MB). Limite: 15MB.")
+
     if filename.lower().endswith(".pdf"):
-        raw = await file.read()
-        tmp_path = os.path.join(UPLOAD_DIR, f"qb_{current_user.id}_{filename}")
-        os.makedirs(UPLOAD_DIR, exist_ok=True)
-        with open(tmp_path, "wb") as f:
-            f.write(raw)
-        with pdfplumber.open(tmp_path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    content += text + "\n"
-        os.remove(tmp_path)
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(raw)
+            tmp_path = tmp.name
+        try:
+            with pdfplumber.open(tmp_path) as pdf:
+                for page in pdf.pages[:60]:
+                    text = page.extract_text()
+                    if text:
+                        content += text + "\n"
+        finally:
+            os.unlink(tmp_path)
     else:
-        raw = await file.read()
         content = raw.decode("utf-8", errors="ignore")
 
     if not content.strip():

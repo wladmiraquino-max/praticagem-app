@@ -58,6 +58,49 @@ function Detail({ m, onClose }) {
   )
 }
 
+function MaterialCard({ m, onSelect, onDelete, onRefresh }) {
+  const [processing, setProcessing] = useState(false)
+
+  const processAI = async (e) => {
+    e.stopPropagation()
+    setProcessing(true)
+    try {
+      await api.post(`/materials/${m.id}/process`)
+      await onRefresh()
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  return (
+    <div style={card({ padding: 18 })}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+        <span style={{ background: m.summary ? C.accentDim : 'rgba(255,255,255,0.05)', color: m.summary ? C.accent : C.textDim, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Cpu size={9} /> {m.summary ? 'Resumo pronto' : 'Aguardando resumo'}
+        </span>
+        <button onClick={() => onDelete(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textDim, display: 'flex' }}><Trash2 size={13} /></button>
+      </div>
+      <p style={{ color: C.textPrimary, fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{m.title}</p>
+      {m.subject && <p style={{ color: C.accent, fontSize: 11, marginBottom: 3 }}>Disciplina: {m.subject}</p>}
+      {m.summary
+        ? <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 10 }}>{m.summary}</p>
+        : <p style={{ color: C.textDim, fontSize: 12, marginBottom: 10, fontStyle: 'italic' }}>Clique em "Gerar resumo" para que a IA processe este material.</p>
+      }
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        {!m.summary && (
+          <button onClick={processAI} disabled={processing}
+            style={{ background: 'none', border: `1px solid ${C.accent}55`, cursor: processing ? 'not-allowed' : 'pointer', color: C.accent, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 10px', borderRadius: 6, opacity: processing ? 0.6 : 1 }}>
+            {processing ? <><Cpu size={11} style={{ animation: 'spin 1s linear infinite' }} /> Gerando...</> : <><Sparkles size={11} /> Gerar resumo</>}
+          </button>
+        )}
+        <button onClick={() => onSelect(m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.accent, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
+          Ver detalhes <ChevronRight size={12} />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Materials() {
   const [materials, setMaterials] = useState([])
   const [selected, setSelected] = useState(null)
@@ -74,9 +117,16 @@ export default function Materials() {
 
   const upload = async (e) => {
     const file = e.target.files[0]; if (!file) return
+    const MAX_MB = 15
+    if (file.size > MAX_MB * 1024 * 1024) {
+      alert(`Arquivo muito grande (${(file.size/1024/1024).toFixed(1)}MB). Limite: ${MAX_MB}MB.`)
+      if (fileRef.current) fileRef.current.value = ''
+      return
+    }
     setUploading(true)
     const form = new FormData(); form.append('file', file); if (subject) form.append('subject', subject)
     try { await api.post('/materials/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }); await load() }
+    catch (err) { alert(err?.response?.data?.detail || 'Erro ao enviar arquivo') }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
   }
 
@@ -152,20 +202,7 @@ export default function Materials() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 14 }}>
           {materials.map(m => (
-            <div key={m.id} style={card({ padding: 18 })}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-                <span style={{ background: C.accentDim, color: C.accent, fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Cpu size={9} /> Processado por IA
-                </span>
-                <button onClick={() => del(m.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textDim, display: 'flex' }}><Trash2 size={13} /></button>
-              </div>
-              <p style={{ color: C.textPrimary, fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{m.title}</p>
-              {m.subject && <p style={{ color: C.accent, fontSize: 11, marginBottom: 3 }}>Disciplina: {m.subject}</p>}
-              {m.summary && <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: 10 }}>{m.summary}</p>}
-              <button onClick={() => setSelected(m)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.accent, fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, padding: 0 }}>
-                Ver detalhes <ChevronRight size={12} />
-              </button>
-            </div>
+            <MaterialCard key={m.id} m={m} onSelect={setSelected} onDelete={del} onRefresh={load} />
           ))}
         </div>
       )}
