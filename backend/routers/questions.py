@@ -14,9 +14,11 @@ router = APIRouter(prefix="/api/questions", tags=["questions"])
 def list_questions(
     subject: Optional[str] = None,
     difficulty: Optional[str] = None,
+    source: Optional[str] = None,   # "bz" para filtrar questões dos cadernos BZ
+    caderno: Optional[str] = None,  # nome exato do caderno
     limit: int = Query(10, le=50),
     offset: int = 0,
-    filter: Optional[str] = None,  # "wrong" | "favorites" | "review"
+    filter: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
@@ -25,6 +27,10 @@ def list_questions(
         q = q.filter(models.Question.subject == subject)
     if difficulty:
         q = q.filter(models.Question.difficulty == difficulty)
+    if source == "bz":
+        q = q.filter(models.Question.source.ilike("%BZ%"))
+    elif caderno:
+        q = q.filter(models.Question.source.ilike(f"%{caderno}%"))
 
     if filter == "wrong":
         wrong_ids = (
@@ -35,7 +41,7 @@ def list_questions(
         q = q.filter(models.Question.id.in_(wrong_ids))
 
     total = q.count()
-    questions = q.offset(offset).limit(limit).all()
+    questions = q.order_by(models.Question.id).offset(offset).limit(limit).all()
     return questions
 
 
@@ -43,6 +49,24 @@ def list_questions(
 def count_questions(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     total = db.query(models.Question).count()
     return {"total": total}
+
+
+@router.get("/cadernos")
+def list_cadernos(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    """Retorna a lista de cadernos BZ que têm questões importadas."""
+    from sqlalchemy import distinct
+    sources = db.query(models.Question.source).filter(
+        models.Question.source.ilike("%BZ%")
+    ).distinct().all()
+    cadernos = []
+    seen = set()
+    for (src,) in sources:
+        if src and src not in seen:
+            seen.add(src)
+            # Extrai nome do caderno: "BZ — Nome Do Caderno" → "Nome Do Caderno"
+            name = src.replace("BZ — ", "").replace("BZ Praticagem", "BZ").strip()
+            cadernos.append({"source": src, "name": name})
+    return cadernos
 
 
 @router.get("/subjects")

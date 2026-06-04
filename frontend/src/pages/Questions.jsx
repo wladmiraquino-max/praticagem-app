@@ -68,16 +68,23 @@ export default function Questions() {
   const [current, setCurrent] = useState(0)
   const [result, setResult] = useState(null)
   const [filter, setFilter] = useState('all')
+  const [tab, setTab] = useState('all') // 'all' | 'bz'
   const [subject, setSubject] = useState('')
   const [difficulty, setDifficulty] = useState('')
+  const [caderno, setCaderno] = useState('')
   const [subjects, setSubjects] = useState([])
+  const [cadernos, setCadernos] = useState([])
   const [total, setTotal] = useState(0)
 
   const load = async () => {
-    const p = new URLSearchParams({ limit: 10 })
+    const p = new URLSearchParams({ limit: 20 })
     if (subject) p.append('subject', subject)
     if (difficulty) p.append('difficulty', difficulty)
     if (filter === 'wrong') p.append('filter', 'wrong')
+    if (tab === 'bz') {
+      if (caderno) p.append('caderno', caderno)
+      else p.append('source', 'bz')
+    }
     const r = await api.get(`/questions?${p}`)
     setQuestions(r.data); setCurrent(0); setResult(null)
   }
@@ -85,10 +92,11 @@ export default function Questions() {
   useEffect(() => {
     api.get('/questions/subjects').then(r => setSubjects(r.data)).catch(() => {})
     api.get('/questions/count').then(r => setTotal(r.data.total)).catch(() => {})
+    api.get('/questions/cadernos').then(r => setCadernos(r.data)).catch(() => {})
     load()
   }, [])
 
-  useEffect(() => { load() }, [filter, subject, difficulty])
+  useEffect(() => { load() }, [filter, subject, difficulty, tab, caderno])
 
   const handleAnswer = async (sel) => {
     const q = questions[current]
@@ -111,21 +119,43 @@ export default function Questions() {
         </button>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 2, background: '#111', border: `1px solid ${C.border}`, borderRadius: 9, padding: 3 }}>
-          {[['all','Todas'],['wrong','Que errei']].map(([k,l]) => (
-            <button key={k} onClick={() => setFilter(k)} style={tabStyle(filter === k)}>{l}</button>
-          ))}
+      {/* Tabs principais */}
+      <div style={{ display: 'flex', gap: 2, background: '#111', border: `1px solid ${C.border}`, borderRadius: 9, padding: 3, marginBottom: 16, width: 'fit-content' }}>
+        {[['all','Todas'],['bz','BZ — Cadernos'],['wrong','Que errei']].map(([k,l]) => (
+          <button key={k} onClick={() => { setTab(k === 'wrong' ? 'all' : k); setFilter(k === 'wrong' ? 'wrong' : 'all'); setCaderno('') }} style={tabStyle((tab === k) || (k === 'wrong' && filter === 'wrong'))}>{l}</button>
+        ))}
+      </div>
+
+      {/* Filtros BZ */}
+      {tab === 'bz' && cadernos.length > 0 && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setCaderno('')}
+              style={{ padding: '5px 12px', background: !caderno ? C.accent : '#1a1a1a', color: !caderno ? '#000' : C.textMuted, border: `1px solid ${!caderno ? C.accent : C.border}`, borderRadius: 20, fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
+              Todos os cadernos
+            </button>
+            {cadernos.map(c => (
+              <button key={c.source} onClick={() => setCaderno(c.name)}
+                style={{ padding: '5px 12px', background: caderno === c.name ? C.accent : '#1a1a1a', color: caderno === c.name ? '#000' : C.textMuted, border: `1px solid ${caderno === c.name ? C.accent : C.border}`, borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                {c.name}
+              </button>
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Filtros gerais */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 20, flexWrap: 'wrap' }}>
         <select value={difficulty} onChange={e => setDifficulty(e.target.value)} style={selStyle}>
           <option value="">Todos os níveis</option>
           <option>Fácil</option><option>Médio</option><option>Difícil</option>
         </select>
-        <select value={subject} onChange={e => setSubject(e.target.value)} style={{ ...selStyle, maxWidth: 220 }}>
-          <option value="">Todas as matérias</option>
-          {subjects.map(s => <option key={s}>{s}</option>)}
-        </select>
+        {tab !== 'bz' && (
+          <select value={subject} onChange={e => setSubject(e.target.value)} style={{ ...selStyle, maxWidth: 220 }}>
+            <option value="">Todas as matérias</option>
+            {subjects.map(s => <option key={s}>{s}</option>)}
+          </select>
+        )}
       </div>
 
       {questions.length === 0 ? (
