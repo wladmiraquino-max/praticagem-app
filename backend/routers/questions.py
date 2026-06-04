@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import Optional, List
@@ -53,7 +53,7 @@ def count_questions(db: Session = Depends(get_db), current_user: models.User = D
 
 @router.post("/import-bulk")
 def import_questions_bulk(
-    questions: list[dict],
+    questions: List[dict] = Body(...),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
