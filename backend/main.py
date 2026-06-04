@@ -44,9 +44,12 @@ def root():
 def health():
     import os
     key = os.environ.get("ANTHROPIC_API_KEY", "")
-    key_ok = key.startswith("sk-ant-") and len(key) > 20
+    key_stripped = key.strip().strip('"').strip("'")
+    key_ok = key_stripped.startswith("sk-ant-") and len(key_stripped) > 20
     return {
         "api": "online",
         "anthropic_key_set": key_ok,
-        "key_prefix": key[:12] + "..." if key_ok else "NOT SET",
+        "key_length": len(key),
+        "key_prefix": key_stripped[:15] + "..." if len(key_stripped) > 5 else "EMPTY",
+        "all_env_keys": [k for k in os.environ.keys() if "ANTHROP" in k.upper()],
     }
