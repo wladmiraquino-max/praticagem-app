@@ -51,6 +51,33 @@ def count_questions(db: Session = Depends(get_db), current_user: models.User = D
     return {"total": total}
 
 
+@router.post("/import-bulk")
+def import_questions_bulk(
+    questions: list[dict],
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Importa lista de questões diretamente (usado para injetar questões BZ do Drive)."""
+    created = 0
+    for qd in questions:
+        if not qd.get("text") or not qd.get("options"):
+            continue
+        q = models.Question(
+            text=qd["text"],
+            options=qd["options"],
+            correct=qd.get("correct", "A"),
+            explanation=qd.get("explanation", ""),
+            subject=qd.get("subject", "Arte Naval"),
+            discipline="0",
+            difficulty=qd.get("difficulty", "Médio"),
+            source=qd.get("source", "BZ Praticagem"),
+        )
+        db.add(q)
+        created += 1
+    db.commit()
+    return {"created": created, "message": f"{created} questões importadas com sucesso."}
+
+
 @router.get("/cadernos")
 def list_cadernos(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     """Retorna a lista de cadernos BZ que têm questões importadas."""
