@@ -12,53 +12,77 @@ function BookDetail({ book, onClose, onGenerate }) {
   const [count, setCount] = useState(10)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
+  const [mode, setMode] = useState('extract') // 'extract' | 'generate'
+
+  const extract = async () => {
+    setLoading(true); setResult(null)
+    try {
+      const r = await api.post(`/question-books/${book.id}/extract`)
+      setResult(r.data); onGenerate()
+    } catch (err) {
+      setResult({ error: err?.response?.data?.detail || 'Erro ao extrair questões' })
+    } finally { setLoading(false) }
+  }
 
   const generate = async () => {
-    setLoading(true)
-    setResult(null)
+    setLoading(true); setResult(null)
     try {
       const r = await api.post(`/question-books/${book.id}/generate?count=${count}`)
-      setResult(r.data)
-      onGenerate()
+      setResult(r.data); onGenerate()
     } catch (err) {
       setResult({ error: err?.response?.data?.detail || 'Erro ao gerar questões' })
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#111', border: `1px solid ${C.border}`, borderRadius: 16, width: '100%', maxWidth: 520 }}>
+      <div style={{ background: '#111', border: `1px solid ${C.border}`, borderRadius: 16, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
           <h2 style={{ color: C.textPrimary, fontWeight: 700, fontSize: 15 }}>{book.title}</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textMuted }}><X size={18} /></button>
         </div>
         <div style={{ padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {book.subject && (
-            <span style={{ background: C.accentDim, color: C.accent, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, width: 'fit-content' }}>{book.subject}</span>
-          )}
+          {book.subject && <span style={{ background: C.accentDim, color: C.accent, fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, width: 'fit-content' }}>{book.subject}</span>}
 
           <div style={{ background: '#0a0a0a', border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
-            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>Questões já geradas deste caderno</p>
+            <p style={{ color: C.textMuted, fontSize: 12, marginBottom: 4 }}>Questões salvas deste caderno</p>
             <p style={{ color: C.accent, fontSize: 28, fontWeight: 700 }}>{book.questions_generated}</p>
           </div>
 
-          <div>
-            <p style={{ color: C.textSecondary, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Quantas questões gerar agora?</p>
-            <div style={{ display: 'flex', gap: 8 }}>
-              {[5, 10, 20, 30].map(n => (
-                <button key={n} onClick={() => setCount(n)}
-                  style={{ padding: '8px 16px', background: count === n ? C.accent : '#1a1a1a', color: count === n ? '#000' : C.textMuted, border: `1px solid ${count === n ? C.accent : C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                  {n}
-                </button>
-              ))}
-            </div>
+          {/* Seletor de modo */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <button onClick={() => setMode('extract')}
+              style={{ padding: '12px', background: mode === 'extract' ? C.accentDim : '#1a1a1a', color: mode === 'extract' ? C.accent : C.textMuted, border: `1px solid ${mode === 'extract' ? C.accent : C.border}`, borderRadius: 10, fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center' }}>
+              Importar questoes exatas
+              <p style={{ fontSize: 10, fontWeight: 400, marginTop: 3, color: mode === 'extract' ? C.accent : C.textDim }}>Extrai as questoes e gabaritos do BZ</p>
+            </button>
+            <button onClick={() => setMode('generate')}
+              style={{ padding: '12px', background: mode === 'generate' ? C.accentDim : '#1a1a1a', color: mode === 'generate' ? C.accent : C.textMuted, border: `1px solid ${mode === 'generate' ? C.accent : C.border}`, borderRadius: 10, fontWeight: 700, fontSize: 12, cursor: 'pointer', textAlign: 'center' }}>
+              Gerar questoes similares
+              <p style={{ fontSize: 10, fontWeight: 400, marginTop: 3, color: mode === 'generate' ? C.accent : C.textDim }}>Cria novas questoes no mesmo estilo</p>
+            </button>
           </div>
 
-          <p style={{ color: C.textMuted, fontSize: 12, background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '10px 12px' }}>
-            A IA vai analisar o gabarito comentado do seu caderno e gerar <strong style={{ color: C.textSecondary }}>{count} questões originais</strong> no mesmo estilo, cobrindo os mesmos temas com novas perguntas.
-          </p>
+          {mode === 'extract' ? (
+            <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '12px 14px' }}>
+              <p style={{ color: C.textSecondary, fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Importar questoes exatas do BZ</p>
+              <p style={{ color: C.textMuted, fontSize: 12, lineHeight: 1.6 }}>
+                A IA vai ler o caderno e extrair <strong style={{ color: C.textSecondary }}>todas as questoes exatamente como estao escritas</strong>, incluindo o gabarito comentado original. Ao responder no app, voce vera a justificativa completa do BZ.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p style={{ color: C.textSecondary, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Quantas questoes gerar?</p>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[5, 10, 20, 30].map(n => (
+                  <button key={n} onClick={() => setCount(n)}
+                    style={{ padding: '8px 16px', background: count === n ? C.accent : '#1a1a1a', color: count === n ? '#000' : C.textMuted, border: `1px solid ${count === n ? C.accent : C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {result && !result.error && (
             <div style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 9, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -70,13 +94,18 @@ function BookDetail({ book, onClose, onGenerate }) {
             <p style={{ color: '#f87171', fontSize: 12, background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 8, padding: '10px 12px' }}>{result.error}</p>
           )}
 
-          <button onClick={generate} disabled={loading}
+          <button onClick={mode === 'extract' ? extract : generate} disabled={loading}
             style={{ width: '100%', padding: '13px', background: loading ? '#1a1a1a' : C.accent, color: loading ? C.textMuted : '#000', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {loading ? <><Cpu size={14} style={{ animation: 'spin 1s linear infinite' }} /> Gerando questões...</> : <><Sparkles size={14} /> Gerar {count} questões</>}
+            {loading
+              ? <><Cpu size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processando...</>
+              : mode === 'extract'
+                ? <><Sparkles size={14} /> Importar questoes do caderno</>
+                : <><Sparkles size={14} /> Gerar {count} questoes</>
+            }
           </button>
 
           <p style={{ color: C.textDim, fontSize: 11, textAlign: 'center' }}>
-            As questões geradas ficam disponíveis na aba <strong style={{ color: C.textMuted }}>Questões</strong> do app.
+            As questoes ficam disponiveis na aba <strong style={{ color: C.textMuted }}>Questoes</strong> do app.
           </p>
         </div>
       </div>

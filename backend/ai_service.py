@@ -160,6 +160,51 @@ Crie 4 sprints semanais."""
         return []
 
 
+def extract_questions_from_caderno(content: str, subject: str) -> list[dict]:
+    """Extrai as questões EXATAS de um caderno BZ com gabarito comentado original."""
+    prompt = f"""Você é um assistente especializado em extrair questões de concurso de cadernos de estudo.
+
+Analise o CADERNO DE QUESTÕES abaixo e extraia TODAS as questões exatamente como estão escritas, preservando:
+- O enunciado original da questão
+- As alternativas originais (A, B, C, D, E)
+- A resposta correta
+- O gabarito comentado/justificativa original (exatamente como está no caderno)
+
+IMPORTANTE: Não crie nem modifique nada. Extraia fielmente o que está escrito.
+
+CADERNO:
+{content[:8000]}
+
+Retorne APENAS um JSON válido (sem markdown), com esta estrutura:
+[
+  {{
+    "text": "enunciado exato da questão",
+    "options": {{"A": "texto da alternativa A", "B": "...", "C": "...", "D": "...", "E": "..."}},
+    "correct": "letra da alternativa correta (A/B/C/D/E)",
+    "explanation": "gabarito comentado original completo",
+    "difficulty": "Médio",
+    "source": "BZ Praticagem"
+  }}
+]
+
+Se alguma questão não tiver todas as alternativas ou gabarito, inclua o que estiver disponível."""
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=8000,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = response.content[-1].text.strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+    try:
+        return json.loads(text)
+    except Exception:
+        return []
+
+
 def generate_from_caderno(content: str, subject: str, count: int = 10) -> list[dict]:
     """Gera novas questões de múltipla escolha com base em caderno de questões com gabarito comentado."""
     prompt = f"""Você é um especialista em elaboração de questões para o concurso de Praticagem brasileiro.

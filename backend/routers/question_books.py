@@ -108,6 +108,64 @@ def generate_questions(
     }
 
 
+@router.post("/{book_id}/extract")
+def extract_exact_questions(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Extrai questões EXATAS do caderno BZ com gabarito comentado original."""
+    book = db.query(models.QuestionBook).filter(
+        models.QuestionBook.id == book_id,
+        models.QuestionBook.user_id == current_user.id,
+    ).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Caderno não encontrado")
+
+    if not (book.content or "").strip():
+        raise HTTPException(status_code=400, detail="Caderno sem conteúdo extraído.")
+
+    try:
+        questions_data = ai_service.extract_questions_from_caderno(
+            content=book.content or "",
+            subject=book.subject or "Praticagem",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao extrair questões: {str(e)[:200]}")
+
+    if not questions_data:
+        raise HTTPException(status_code=400, detail="Não foi possível extrair questões. Verifique se o caderno tem questões com gabarito comentado.")
+
+    created = 0
+    for qd in questions_data:
+        if not qd.get("text"):
+            continue
+        options = qd.get("options", {})
+        if isinstance(options, dict) and len(options) < 2:
+            continue
+        q = models.Question(
+            text=qd.get("text", ""),
+            options=options,
+            correct=qd.get("correct", "A"),
+            explanation=qd.get("explanation", ""),
+            subject=book.subject or "Arte Naval",
+            discipline="0",
+            difficulty=qd.get("difficulty", "Médio"),
+            source=qd.get("source", f"BZ — {book.title}"),
+        )
+        db.add(q)
+        created += 1
+
+    book.questions_generated = (book.questions_generated or 0) + created
+    db.commit()
+
+    return {
+        "created": created,
+        "message": f"{created} questões extraídas e salvas com gabarito comentado original.",
+        "total_generated": book.questions_generated,
+    }
+
+
 @router.delete("/{book_id}")
 def delete_book(
     book_id: int,
