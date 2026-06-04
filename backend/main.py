@@ -38,3 +38,15 @@ app.include_router(question_books.router)
 @app.get("/")
 def root():
     return {"status": "Praticagem API online", "docs": "/docs"}
+
+
+@app.get("/health")
+def health():
+    import os
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    key_ok = key.startswith("sk-ant-") and len(key) > 20
+    return {
+        "api": "online",
+        "anthropic_key_set": key_ok,
+        "key_prefix": key[:12] + "..." if key_ok else "NOT SET",
+    }
