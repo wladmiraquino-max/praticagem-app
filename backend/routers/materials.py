@@ -268,14 +268,19 @@ def import_material(
     content: str = Body(..., embed=True),
     subject: Optional[str] = Body(None, embed=True),
     source: str = Body("google_drive_mcp", embed=True),
+    process_ai: bool = Body(False, embed=True),
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """Importa material a partir de texto já extraído (usado pelo processamento via MCP)."""
+    """Importa material a partir de texto já extraído. process_ai=True gera resumo/mnemônico via IA."""
     if not content.strip():
         raise HTTPException(status_code=400, detail="Conteúdo vazio")
 
-    processed = ai_service.process_material(title, content, subject or "Praticagem")
+    if process_ai:
+        processed = ai_service.process_material(title, content, subject or "Praticagem")
+    else:
+        processed = {"summary": "", "mnemonic": "", "sections": [], "concepts": []}
+
     material = models.Material(
         user_id=current_user.id,
         title=title,
