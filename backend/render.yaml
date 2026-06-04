@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: praticagem-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python seed_data.py
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    disk:
+      name: praticagem-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
+    envVars:
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false
