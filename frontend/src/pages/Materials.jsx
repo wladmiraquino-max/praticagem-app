@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import api from '../api'
-import { Upload, Cpu, Trash2, Sparkles, BookOpen, Brain, X, ExternalLink, ChevronRight } from 'lucide-react'
+import { Upload, Cpu, Trash2, Sparkles, X, ExternalLink, ChevronRight, Link } from 'lucide-react'
 import { C, card } from '../theme'
 
 function Detail({ m, onClose }) {
@@ -63,6 +63,10 @@ export default function Materials() {
   const [selected, setSelected] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [subject, setSubject] = useState('')
+  const [driveUrl, setDriveUrl] = useState('')
+  const [driveError, setDriveError] = useState('')
+  const [driveSuccess, setDriveSuccess] = useState('')
+  const [showDriveInput, setShowDriveInput] = useState(false)
   const fileRef = useRef()
 
   const load = () => api.get('/materials').then(r => setMaterials(r.data))
@@ -76,6 +80,23 @@ export default function Materials() {
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = '' }
   }
 
+  const uploadFromDrive = async () => {
+    if (!driveUrl.trim()) return
+    setUploading(true)
+    setDriveError('')
+    setDriveSuccess('')
+    try {
+      const r = await api.post('/materials/upload-drive', { drive_url: driveUrl, subject: subject || null })
+      await load()
+      setDriveUrl('')
+      setDriveSuccess(r.data.message || 'Processado com sucesso!')
+    } catch (err) {
+      setDriveError(err?.response?.data?.detail || 'Erro ao processar link do Drive')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const del = async (id) => { await api.delete(`/materials/${id}`); setMaterials(m => m.filter(x => x.id !== id)) }
 
   const subjects = ['Manobra','Arte Naval','Arquitetura Naval','Meteorologia e Oceanografia','Legislação Marítima','Navegação e Radar','Comunicações','Segurança da Navegação','Normas e Publicações','Gestão e Procedimentos','Sistemas e Equipamentos','Conhecimentos Portuários','Conhecimentos Gerais']
@@ -84,26 +105,43 @@ export default function Materials() {
     <div style={{ padding: '28px 32px' }}>
       {selected && <Detail m={selected} onClose={() => setSelected(null)} />}
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 22 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 16 }}>
         <div>
           <h1 style={{ color: C.textPrimary, fontSize: 20, fontWeight: 700, marginBottom: 3 }}>Materiais de Estudo</h1>
-          <p style={{ color: C.textMuted, fontSize: 13 }}>Envie PDFs ou textos — a IA gera resumo, mnemônico e questões</p>
+          <p style={{ color: C.textMuted, fontSize: 13 }}>Envie PDFs/textos ou cole um link do Google Drive — a IA gera resumo, mnemônico e questões</p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <a href="https://stitch.withgoogle.com/" target="_blank" rel="noopener noreferrer"
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textMuted, fontSize: 12, textDecoration: 'none' }}>
-            <ExternalLink size={12} /> Google Stitch
-          </a>
           <select value={subject} onChange={e => setSubject(e.target.value)} style={{ padding: '8px 12px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textSecondary, fontSize: 13, outline: 'none' }}>
             <option value="">Selecione a matéria</option>
             {subjects.map(s => <option key={s}>{s}</option>)}
           </select>
+          <button onClick={() => { setShowDriveInput(v => !v); setDriveError('') }}
+            style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', background: showDriveInput ? C.accentDim : '#1a1a1a', color: showDriveInput ? C.accent : C.textSecondary, border: `1px solid ${showDriveInput ? C.accent : C.border}`, borderRadius: 9, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+            <Link size={13} /> Google Drive
+          </button>
           <label style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 18px', background: uploading ? '#1a1a1a' : C.accent, color: uploading ? C.textMuted : '#000', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: uploading ? 'not-allowed' : 'pointer' }}>
-            {uploading ? <><Cpu size={13} style={{ animation: 'spin 1s linear infinite' }} /> Processando...</> : <><Upload size={13} /> Enviar material</>}
+            {uploading ? <><Cpu size={13} style={{ animation: 'spin 1s linear infinite' }} /> Processando...</> : <><Upload size={13} /> Enviar arquivo</>}
             <input ref={fileRef} type="file" accept=".pdf,.txt,.md" onChange={upload} style={{ display: 'none' }} disabled={uploading} />
           </label>
         </div>
       </div>
+
+      {showDriveInput && (
+        <div style={{ background: '#0e1a0e', border: `1px solid ${C.accent}33`, borderRadius: 12, padding: '16px 20px', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <p style={{ color: C.accent, fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', margin: 0 }}>Google Drive — cole o link de compartilhamento</p>
+          <p style={{ color: C.textMuted, fontSize: 12, margin: 0 }}>O arquivo deve estar compartilhado como <strong style={{ color: C.textSecondary }}>"Qualquer pessoa com o link"</strong>. PDFs sem limite de páginas.</p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <input value={driveUrl} onChange={e => setDriveUrl(e.target.value)} placeholder="https://drive.google.com/file/d/..." disabled={uploading}
+              style={{ flex: 1, padding: '10px 14px', background: '#111', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textPrimary, fontSize: 13, outline: 'none' }} />
+            <button onClick={uploadFromDrive} disabled={uploading || !driveUrl.trim()}
+              style={{ padding: '10px 20px', background: C.accent, color: '#000', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: uploading || !driveUrl.trim() ? 'not-allowed' : 'pointer', opacity: uploading || !driveUrl.trim() ? 0.6 : 1 }}>
+              {uploading ? 'Processando...' : 'Processar'}
+            </button>
+          </div>
+          {driveError && <p style={{ color: '#f87171', fontSize: 12, margin: 0, background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 7, padding: '8px 12px' }}>{driveError}</p>}
+          {driveSuccess && <p style={{ color: '#4ade80', fontSize: 12, margin: 0, background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)', borderRadius: 7, padding: '8px 12px' }}>{driveSuccess}</p>}
+        </div>
+      )}
 
       {materials.length === 0 ? (
         <div style={{ ...card({ padding: 60, textAlign: 'center', border: `1px dashed ${C.border}` }) }}>

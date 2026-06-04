@@ -1,6 +1,9 @@
 import os
+import re
+import tempfile
 import pdfplumber
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+import gdown
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
@@ -45,7 +48,7 @@ async def upload_material(
         with open(tmp_path, "wb") as f:
             f.write(raw)
         with pdfplumber.open(tmp_path) as pdf:
-            for page in pdf.pages[:30]:  # cap at 30 pages
+            for page in pdf.pages:
                 text = page.extract_text()
                 if text:
                     content += text + "\n"
@@ -123,6 +126,135 @@ def generate_questions(
         created.append(q)
     db.commit()
     return {"created": len(created), "message": f"{len(created)} questões geradas com sucesso"}
+
+
+def _parse_drive_url(url: str) -> tuple[str, bool]:
+    """Retorna (id, is_folder). Lança ValueError se URL inválida."""
+    folder_match = re.search(r"/folders/([a-zA-Z0-9_-]+)", url)
+    if folder_match:
+        return folder_match.group(1), True
+    for pat in [r"/file/d/([a-zA-Z0-9_-]+)", r"[?&]id=([a-zA-Z0-9_-]+)"]:
+        m = re.search(pat, url)
+        if m:
+            return m.group(1), False
+    raise ValueError("URL do Google Drive inválida. Use um link de compartilhamento de arquivo ou pasta.")
+
+
+def _read_file_content(path: str) -> str:
+    if path.lower().endswith(".pdf"):
+        content = ""
+        with pdfplumber.open(path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    content += text + "\n"
+        return content
+    with open(path, "r", encoding="utf-8", errors="ignore") as f:
+        return f.read()
+
+
+def _save_material(db, user_id: int, filename: str, content: str, subject: str | None, source_prefix: str) -> models.Material:
+    title = os.path.splitext(os.path.basename(filename))[0].replace("_", " ").replace("-", " ").title()
+    processed = ai_service.process_material(title, content, subject or "Praticagem")
+    material = models.Material(
+        user_id=user_id,
+        title=title,
+        subject=subject,
+        source=f"{source_prefix}:{filename}",
+        content=content[:20000],
+        summary=processed.get("summary", ""),
+        mnemonic=processed.get("mnemonic", ""),
+        sections=processed.get("sections", []),
+    )
+    db.add(material)
+    for concept in processed.get("concepts", [])[:10]:
+        node = db.query(models.KnowledgeNode).filter(
+            models.KnowledgeNode.user_id == user_id,
+            models.KnowledgeNode.concept == concept,
+        ).first()
+        if not node:
+            db.add(models.KnowledgeNode(user_id=user_id, concept=concept, subject=subject or "Geral", mastery=0))
+    return material
+
+
+@router.post("/upload-drive")
+async def upload_from_drive(
+    drive_url: str = Body(..., embed=True),
+    subject: Optional[str] = Body(None, embed=True),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    try:
+        drive_id, is_folder = _parse_drive_url(drive_url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    perm_hint = "Certifique-se de que está compartilhado como 'Qualquer pessoa com o link'."
+
+    # ── PASTA ──────────────────────────────────────────────────────────────────
+    if is_folder:
+        tmp_dir = os.path.join(UPLOAD_DIR, f"folder_{current_user.id}_{drive_id}")
+        try:
+            gdown.download_folder(id=drive_id, output=tmp_dir, quiet=True, use_cookies=False)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Erro ao baixar pasta: {str(e)}. {perm_hint}")
+
+        exts = (".pdf", ".txt", ".md")
+        files_found = []
+        for root, _, fnames in os.walk(tmp_dir):
+            for fname in fnames:
+                if fname.lower().endswith(exts):
+                    files_found.append(os.path.join(root, fname))
+
+        if not files_found:
+            import shutil; shutil.rmtree(tmp_dir, ignore_errors=True)
+            raise HTTPException(status_code=400, detail="Nenhum arquivo PDF ou TXT encontrado na pasta.")
+
+        created = 0
+        errors = []
+        for fpath in files_found:
+            try:
+                content = _read_file_content(fpath)
+                if content.strip():
+                    _save_material(db, current_user.id, fpath, content, subject, "google_drive_folder")
+                    created += 1
+            except Exception as ex:
+                errors.append(os.path.basename(fpath))
+
+        import shutil; shutil.rmtree(tmp_dir, ignore_errors=True)
+        db.commit()
+
+        msg = f"{created} material(is) processado(s) com sucesso."
+        if errors:
+            msg += f" {len(errors)} arquivo(s) ignorado(s): {', '.join(errors[:5])}"
+        return {"created": created, "message": msg, "is_folder": True}
+
+    # ── ARQUIVO ÚNICO ──────────────────────────────────────────────────────────
+    tmp_path = os.path.join(UPLOAD_DIR, f"drive_{current_user.id}_{drive_id}.pdf")
+    try:
+        gdown.download(id=drive_id, output=tmp_path, quiet=True, fuzzy=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao baixar arquivo: {str(e)}. {perm_hint}")
+
+    if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
+        raise HTTPException(status_code=400, detail=f"Arquivo vazio ou não encontrado. {perm_hint}")
+
+    try:
+        content = _read_file_content(tmp_path)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Não foi possível ler o arquivo: {str(e)}")
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do arquivo.")
+
+    material = _save_material(db, current_user.id, drive_id, content, subject, "google_drive")
+    db.commit()
+    db.refresh(material)
+    return {"created": 1, "message": "Material processado com sucesso.", "is_folder": False, "material_id": material.id}
 
 
 @router.delete("/{material_id}")
