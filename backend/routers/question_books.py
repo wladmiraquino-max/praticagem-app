@@ -66,11 +66,20 @@ def generate_questions(
     if not book:
         raise HTTPException(status_code=404, detail="Caderno não encontrado")
 
-    questions_data = ai_service.generate_from_caderno(
-        content=book.content or "",
-        subject=book.subject or "Praticagem",
-        count=count,
-    )
+    if not (book.content or "").strip():
+        raise HTTPException(status_code=400, detail="Este caderno não tem conteúdo extraído. Envie novamente o arquivo em formato TXT ou DOCX.")
+
+    try:
+        questions_data = ai_service.generate_from_caderno(
+            content=book.content or "",
+            subject=book.subject or "Praticagem",
+            count=count,
+        )
+    except Exception as e:
+        err = str(e)
+        if "api_key" in err.lower() or "authentication" in err.lower() or "auth" in err.lower():
+            raise HTTPException(status_code=503, detail="Chave da IA não configurada no servidor. Configure ANTHROPIC_API_KEY no Render.")
+        raise HTTPException(status_code=500, detail=f"Erro ao chamar a IA: {err[:200]}")
 
     created = 0
     for qd in questions_data:
