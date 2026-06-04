@@ -237,6 +237,11 @@ async def upload_from_drive(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao baixar arquivo: {str(e)}. {perm_hint}")
 
+    # Rejeitar arquivos muito grandes (>80MB) para não estourar memória no Render free
+    if os.path.exists(tmp_path) and os.path.getsize(tmp_path) > 80 * 1024 * 1024:
+        os.remove(tmp_path)
+        raise HTTPException(status_code=400, detail="Arquivo muito grande (>80MB). Use a versão resumida/editada do PDF.")
+
     if not os.path.exists(tmp_path) or os.path.getsize(tmp_path) == 0:
         raise HTTPException(status_code=400, detail=f"Arquivo vazio ou não encontrado. {perm_hint}")
 
@@ -255,6 +260,43 @@ async def upload_from_drive(
     db.commit()
     db.refresh(material)
     return {"created": 1, "message": "Material processado com sucesso.", "is_folder": False, "material_id": material.id}
+
+
+@router.post("/import")
+def import_material(
+    title: str = Body(..., embed=True),
+    content: str = Body(..., embed=True),
+    subject: Optional[str] = Body(None, embed=True),
+    source: str = Body("google_drive_mcp", embed=True),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Importa material a partir de texto já extraído (usado pelo processamento via MCP)."""
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="Conteúdo vazio")
+
+    processed = ai_service.process_material(title, content, subject or "Praticagem")
+    material = models.Material(
+        user_id=current_user.id,
+        title=title,
+        subject=subject,
+        source=source,
+        content=content[:20000],
+        summary=processed.get("summary", ""),
+        mnemonic=processed.get("mnemonic", ""),
+        sections=processed.get("sections", []),
+    )
+    db.add(material)
+    for concept in processed.get("concepts", [])[:10]:
+        node = db.query(models.KnowledgeNode).filter(
+            models.KnowledgeNode.user_id == current_user.id,
+            models.KnowledgeNode.concept == concept,
+        ).first()
+        if not node:
+            db.add(models.KnowledgeNode(user_id=current_user.id, concept=concept, subject=subject or "Geral", mastery=0))
+    db.commit()
+    db.refresh(material)
+    return {"id": material.id, "title": material.title, "message": "Material importado com sucesso"}
 
 
 @router.delete("/{material_id}")
