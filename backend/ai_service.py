@@ -8,7 +8,7 @@ import anthropic
 
 from agents.prompts import AGENT_PROMPTS, AGENT_NAMES
 
-MODEL = "claude-opus-4-6"
+MODEL = "claude-sonnet-4-6"
 client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 SUBJECT_MAP = {
