@@ -124,3 +124,17 @@ class StudyTrail(Base):
     content = Column(JSON)        # list of sprint objects
     generated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     next_at = Column(DateTime)
+
+
+class QuestionBook(Base):
+    __tablename__ = "question_books"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String, nullable=False)
+    subject = Column(String)
+    source_filename = Column(String)
+    content = Column(Text)               # raw extracted text
+    questions_generated = Column(Integer, default=0)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user = relationship("User", foreign_keys=[user_id])

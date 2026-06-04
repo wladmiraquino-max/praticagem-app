@@ -1,0 +1,126 @@
+import os
+import pdfplumber
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from sqlalchemy.orm import Session
+from typing import List, Optional
+from database import get_db
+from auth import get_current_user
+import models, schemas, ai_service
+
+router = APIRouter(prefix="/api/question-books", tags=["question-books"])
+
+UPLOAD_DIR = "uploads"
+
+
+@router.get("", response_model=List[schemas.QuestionBookOut])
+def list_books(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    return db.query(models.QuestionBook).filter(models.QuestionBook.user_id == current_user.id).order_by(models.QuestionBook.created_at.desc()).all()
+
+
+@router.post("/upload", response_model=schemas.QuestionBookOut)
+async def upload_book(
+    file: UploadFile = File(...),
+    subject: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    filename = file.filename or "caderno"
+    content = ""
+
+    if filename.lower().endswith(".pdf"):
+        raw = await file.read()
+        tmp_path = os.path.join(UPLOAD_DIR, f"qb_{current_user.id}_{filename}")
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        with open(tmp_path, "wb") as f:
+            f.write(raw)
+        with pdfplumber.open(tmp_path) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    content += text + "\n"
+        os.remove(tmp_path)
+    else:
+        raw = await file.read()
+        content = raw.decode("utf-8", errors="ignore")
+
+    if not content.strip():
+        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do arquivo")
+
+    title = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
+
+    book = models.QuestionBook(
+        user_id=current_user.id,
+        title=title,
+        subject=subject,
+        source_filename=filename,
+        content=content[:30000],
+        questions_generated=0,
+    )
+    db.add(book)
+    db.commit()
+    db.refresh(book)
+    return book
+
+
+@router.post("/{book_id}/generate")
+def generate_questions(
+    book_id: int,
+    count: int = 10,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    book = db.query(models.QuestionBook).filter(
+        models.QuestionBook.id == book_id,
+        models.QuestionBook.user_id == current_user.id,
+    ).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Caderno não encontrado")
+
+    questions_data = ai_service.generate_from_caderno(
+        content=book.content or "",
+        subject=book.subject or "Praticagem",
+        count=count,
+    )
+
+    created = 0
+    for qd in questions_data:
+        if not qd.get("text"):
+            continue
+        q = models.Question(
+            text=qd.get("text", ""),
+            options=qd.get("options", {"A": "", "B": "", "C": "", "D": ""}),
+            correct=qd.get("correct", "A"),
+            explanation=qd.get("explanation", ""),
+            subject=book.subject or "Geral",
+            discipline="0",
+            difficulty=qd.get("difficulty", "Médio"),
+            source=f"Caderno: {book.title}",
+        )
+        db.add(q)
+        created += 1
+
+    book.questions_generated = (book.questions_generated or 0) + created
+    db.commit()
+
+    return {
+        "created": created,
+        "message": f"{created} questões geradas com sucesso a partir do caderno.",
+        "total_generated": book.questions_generated,
+    }
+
+
+@router.delete("/{book_id}")
+def delete_book(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    book = db.query(models.QuestionBook).filter(
+        models.QuestionBook.id == book_id,
+        models.QuestionBook.user_id == current_user.id,
+    ).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Caderno não encontrado")
+    db.delete(book)
+    db.commit()
+    return {"ok": True}

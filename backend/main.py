@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
 import models  # ensure all models are registered
 
-from routers import auth, questions, simulados, materials, tutor, progress, trail, preferences
+from routers import auth, questions, simulados, materials, tutor, progress, trail, preferences, question_books
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,6 +32,7 @@ app.include_router(tutor.router)
 app.include_router(progress.router)
 app.include_router(trail.router)
 app.include_router(preferences.router)
+app.include_router(question_books.router)
 
 
 @app.get("/")

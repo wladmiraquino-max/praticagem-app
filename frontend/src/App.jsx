@@ -12,6 +12,7 @@ import Tutor from './pages/Tutor'
 import Network from './pages/Network'
 import Performance from './pages/Performance'
 import Preferences from './pages/Preferences'
+import QuestionBooks from './pages/QuestionBooks'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/network" element={<PrivateRoute><Network /></PrivateRoute>} />
           <Route path="/performance" element={<PrivateRoute><Performance /></PrivateRoute>} />
           <Route path="/preferences" element={<PrivateRoute><Preferences /></PrivateRoute>} />
+          <Route path="/question-books" element={<PrivateRoute><QuestionBooks /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>

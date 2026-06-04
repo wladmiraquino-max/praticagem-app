@@ -160,6 +160,50 @@ Crie 4 sprints semanais."""
         return []
 
 
+def generate_from_caderno(content: str, subject: str, count: int = 10) -> list[dict]:
+    """Gera novas questões de múltipla escolha com base em caderno de questões com gabarito comentado."""
+    prompt = f"""Você é um especialista em elaboração de questões para o concurso de Praticagem brasileiro.
+
+Analise o CADERNO DE QUESTÕES abaixo (que contém questões resolvidas com gabarito comentado) e gere {count} NOVAS questões originais de múltipla escolha, no mesmo estilo e nível de dificuldade.
+
+INSTRUÇÕES:
+- As novas questões devem cobrir os mesmos temas e normas identificados no caderno
+- Use o mesmo padrão de enunciado do concurso (citando resolução IMO, artigo de lei, etc.)
+- Inclua as mesmas "pegadinhas" e detalhes que costumam aparecer nas provas
+- Crie questões que NÃO estejam no caderno (questões originais)
+- Justifique cada gabarito com o trecho exato da norma
+
+CADERNO:
+{content[:5000]}
+
+Retorne APENAS um JSON válido (sem markdown), com esta estrutura:
+[
+  {{
+    "text": "enunciado completo da questão",
+    "options": {{"A": "...", "B": "...", "C": "...", "D": "...", "E": "..."}},
+    "correct": "A",
+    "explanation": "justificativa detalhada com trecho da norma",
+    "difficulty": "Fácil|Médio|Difícil",
+    "source": "Resolução/Lei citada"
+  }}
+]"""
+
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4096,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    text = response.content[-1].text.strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+    try:
+        return json.loads(text)
+    except Exception:
+        return []
+
+
 def generate_daily_briefing(stats: dict, user_name: str) -> str:
     """Gera briefing diário personalizado."""
     days_to_exam = 525

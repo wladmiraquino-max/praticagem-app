@@ -118,6 +118,18 @@ class PreferencesOut(PreferencesIn):
         from_attributes = True
 
 
+# ── Question Books ────────────────────────────────────────────────────────────
+class QuestionBookOut(BaseModel):
+    id: int
+    title: str
+    subject: Optional[str]
+    source_filename: Optional[str]
+    questions_generated: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+
 # ── Knowledge ─────────────────────────────────────────────────────────────────
 class KnowledgeOut(BaseModel):
     subject: str

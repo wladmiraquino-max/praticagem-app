@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, LogOut, Anchor } from 'lucide-react'
+import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, LogOut, Anchor, BookMarked } from 'lucide-react'
 import { C } from '../theme'
 
 const mainNav = [
@@ -8,6 +8,7 @@ const mainNav = [
   { to: '/questions', icon: BookOpen, label: 'Questões' },
   { to: '/simulados', icon: ClipboardList, label: 'Simulados' },
   { to: '/materials', icon: Library, label: 'Materiais' },
+  { to: '/question-books', icon: BookMarked, label: 'Cadernos' },
   { to: '/trail', icon: Map, label: 'Trilha de Estudos' },
   { to: '/tutor', icon: MessageSquare, label: 'Tutor IA' },
 ]
