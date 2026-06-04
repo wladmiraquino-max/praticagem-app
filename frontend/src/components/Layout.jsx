@@ -1,20 +1,25 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import {
-  LayoutDashboard, BookOpen, ClipboardList, Library, Map,
-  MessageSquare, Network, SlidersHorizontal, BarChart2,
-  LogOut, Anchor
-} from 'lucide-react'
+import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, Heart, LogOut, Anchor, FileText } from 'lucide-react'
 
-const nav = [
+const S = {
+  sidebar: { width: 230, background: '#111111', borderRight: '1px solid #1f1f1f', display: 'flex', flexDirection: 'column', position: 'fixed', height: '100vh', top: 0, left: 0, zIndex: 50 },
+  logo: { display: 'flex', alignItems: 'center', gap: 10, padding: '20px 20px 18px', borderBottom: '1px solid #1f1f1f' },
+  navSection: { padding: '8px 10px 4px', fontSize: 10, fontWeight: 700, color: '#525252', letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 8 },
+  navItem: (active) => ({ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', textDecoration: 'none', color: active ? '#fff' : '#737373', background: active ? 'rgba(220,38,38,0.12)' : 'transparent', margin: '1px 0', transition: 'all 0.15s' }),
+}
+
+const mainNav = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/questions', icon: BookOpen, label: 'Questões' },
   { to: '/simulados', icon: ClipboardList, label: 'Simulados' },
   { to: '/materials', icon: Library, label: 'Materiais' },
   { to: '/trail', icon: Map, label: 'Trilha de Estudos' },
   { to: '/tutor', icon: MessageSquare, label: 'Tutor IA' },
-  { to: '/network', icon: Network, label: 'Mapa do Conhecimento' },
+]
+const analysisNav = [
   { to: '/performance', icon: BarChart2, label: 'Desempenho' },
+  { to: '/network', icon: Network, label: 'Mapa do Conhecimento' },
   { to: '/preferences', icon: SlidersHorizontal, label: 'Preferências' },
 ]
 
@@ -23,55 +28,57 @@ export default function Layout({ children }) {
   const navigate = useNavigate()
 
   return (
-    <div className="flex min-h-screen bg-[#0f0f13]">
-      {/* Sidebar */}
-      <aside className="w-60 bg-[#16161d] border-r border-[#2a2a38] flex flex-col fixed h-full z-10">
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a' }}>
+      <aside style={S.sidebar}>
         {/* Logo */}
-        <div className="flex items-center gap-2.5 px-5 py-5 border-b border-[#2a2a38]">
-          <div className="w-8 h-8 bg-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
-            <Anchor size={15} className="text-white" />
+        <div style={S.logo}>
+          <div style={{ width: 30, height: 30, background: '#dc2626', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Anchor size={15} color="#fff" />
           </div>
-          <span className="text-white font-bold text-base tracking-tight">
-            Praticagem<span className="text-red-500">Study</span>
-          </span>
+          <span style={{ color: '#fff', fontWeight: 700, fontSize: 15 }}>Praticagem<span style={{ color: '#dc2626' }}>Study</span></span>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-3 overflow-y-auto">
-          {nav.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-4 py-2.5 mx-2 rounded-lg text-sm font-medium transition-all mb-0.5 ${
-                  isActive
-                    ? 'bg-red-600/15 text-red-400 border border-red-600/20'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-                }`
-              }>
-              <Icon size={16} />
+        <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
+          {mainNav.map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to} style={({ isActive }) => S.navItem(isActive)}>
+              <Icon size={15} />
+              {label}
+            </NavLink>
+          ))}
+
+          <div style={S.navSection}>Análise</div>
+
+          {analysisNav.map(({ to, icon: Icon, label }) => (
+            <NavLink key={to} to={to} style={({ isActive }) => S.navItem(isActive)}>
+              <Icon size={15} />
               {label}
             </NavLink>
           ))}
         </nav>
 
-        {/* User */}
-        <div className="border-t border-[#2a2a38] p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-red-600/20 border border-red-600/30 flex items-center justify-center text-red-400 font-bold text-sm flex-shrink-0">
+        {/* Bottom: exam info + user */}
+        <div style={{ borderTop: '1px solid #1f1f1f' }}>
+          <div style={{ padding: '10px 16px', borderBottom: '1px solid #1f1f1f' }}>
+            <p style={{ color: '#525252', fontSize: 11 }}>Concurso Prático · DPC · Marinha</p>
+            <p style={{ color: '#737373', fontSize: 11, marginTop: 2 }}>Prova prevista: out/nov 2027</p>
+          </div>
+          <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 30, height: 30, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#dc2626', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>
               {user?.name?.[0]?.toUpperCase() || 'U'}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{user?.name}</p>
-              <p className="text-xs text-red-400">premium</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ color: '#e5e5e5', fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name}</p>
+              <p style={{ color: '#dc2626', fontSize: 11 }}>premium</p>
             </div>
-            <button onClick={() => { logout(); navigate('/login') }} className="text-slate-500 hover:text-red-400 transition">
-              <LogOut size={15} />
+            <button onClick={() => { logout(); navigate('/login') }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#525252', display: 'flex', padding: 4 }}>
+              <LogOut size={14} />
             </button>
           </div>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="flex-1 ml-60 min-h-screen">
+      <main style={{ flex: 1, marginLeft: 230, minHeight: '100vh', background: '#0a0a0a' }}>
         {children}
       </main>
     </div>
