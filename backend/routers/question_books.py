@@ -1,11 +1,11 @@
 import os
-import pdfplumber
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from database import get_db
 from auth import get_current_user
 import models, schemas, ai_service
+from pdf_utils import extract_text
 
 router = APIRouter(prefix="/api/question-books", tags=["question-books"])
 
@@ -32,24 +32,9 @@ async def upload_book(
     if len(raw) > MAX_SIZE:
         raise HTTPException(status_code=400, detail=f"Arquivo muito grande ({len(raw)//1024//1024}MB). Limite: 15MB.")
 
-    if filename.lower().endswith(".pdf"):
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(raw)
-            tmp_path = tmp.name
-        try:
-            with pdfplumber.open(tmp_path) as pdf:
-                for page in pdf.pages[:60]:
-                    text = page.extract_text()
-                    if text:
-                        content += text + "\n"
-        finally:
-            os.unlink(tmp_path)
-    else:
-        content = raw.decode("utf-8", errors="ignore")
-
-    if not content.strip():
-        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do arquivo")
+    content, error = extract_text(raw, filename, max_pages=60)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
 
     title = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
 

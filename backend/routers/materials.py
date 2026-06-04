@@ -1,7 +1,5 @@
 import os
 import re
-import tempfile
-import pdfplumber
 import gdown
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
@@ -9,6 +7,7 @@ from typing import List, Optional
 from database import get_db
 from auth import get_current_user
 import models, schemas, ai_service
+from pdf_utils import extract_text
 
 router = APIRouter(prefix="/api/materials", tags=["materials"])
 
@@ -46,24 +45,10 @@ async def upload_material(
     if len(raw) > MAX_SIZE:
         raise HTTPException(status_code=400, detail=f"Arquivo muito grande ({len(raw)//1024//1024}MB). Limite: 15MB. Use uma versão resumida do PDF.")
 
-    if filename.lower().endswith(".pdf"):
-        import tempfile
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(raw)
-            tmp_path = tmp.name
-        try:
-            with pdfplumber.open(tmp_path) as pdf:
-                for page in pdf.pages[:40]:
-                    text = page.extract_text()
-                    if text:
-                        content += text + "\n"
-        finally:
-            os.unlink(tmp_path)
-    else:
-        content = raw.decode("utf-8", errors="ignore")
+    content, error = extract_text(raw, filename, max_pages=40)
 
-    if not content.strip():
-        raise HTTPException(status_code=400, detail="Não foi possível extrair texto do arquivo")
+    if error:
+        raise HTTPException(status_code=400, detail=error)
 
     title = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
 
