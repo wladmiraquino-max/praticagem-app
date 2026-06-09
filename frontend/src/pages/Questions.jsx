@@ -1,12 +1,34 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import api from '../api'
-import { CheckCircle, XCircle, ChevronRight, RotateCcw } from 'lucide-react'
+import { CheckCircle, XCircle, ChevronRight, RotateCcw, BookMarked, ArrowRight, Pencil, Save, X } from 'lucide-react'
 import { C, card } from '../theme'
 
 const diffColor = { Fácil: { color: C.success, bg: C.successDim }, Médio: { color: C.accent, bg: C.accentDim }, Difícil: { color: C.error, bg: C.errorDim } }
 
-function QuestionCard({ question, onAnswer, result }) {
+function QuestionCard({ question: initialQuestion, onAnswer, result }) {
+  const [question, setQuestion] = useState(initialQuestion)
   const [selected, setSelected] = useState(null)
+  const [editing, setEditing] = useState(false)
+  const [editCorrect, setEditCorrect] = useState(initialQuestion.correct || 'A')
+  const [editExpl, setEditExpl] = useState(initialQuestion.explanation || '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const saveCorrection = async () => {
+    if (editExpl.trim().length < 20) return
+    setSaving(true)
+    try {
+      await api.patch(`/questions/${question.id}/correct`, { correct: editCorrect, explanation: editExpl })
+      setQuestion({ ...question, correct: editCorrect, explanation: editExpl })
+      setSaved(true)
+      setTimeout(() => { setEditing(false); setSaved(false) }, 1000)
+    } catch (e) {
+      alert('Erro: ' + (e?.response?.data?.detail || e.message))
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const optStyle = (opt) => {
     const base = { width: '100%', textAlign: 'left', padding: '13px 16px', borderRadius: 10, border: '1px solid', cursor: result ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12, transition: 'all 0.15s', background: 'transparent', marginBottom: 8 }
@@ -27,13 +49,22 @@ function QuestionCard({ question, onAnswer, result }) {
 
   return (
     <div style={card({ padding: 24 })}>
+      {/* Cabeçalho */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 20, color: dc.color, background: dc.bg }}>{question.difficulty}</span>
-        <span style={{ color: C.textDim, fontSize: 12 }}>{question.subject}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: C.textDim, fontSize: 12 }}>{question.subject}</span>
+          <button onClick={() => { setEditing(!editing); setEditCorrect(question.correct); setEditExpl(question.explanation || '') }}
+            style={{ background: editing ? C.accentDim : 'none', border: `1px solid ${editing ? C.accent : C.border}`, borderRadius: 6, padding: '3px 9px', cursor: 'pointer', color: editing ? C.accent : C.textDim, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: editing ? 700 : 400 }}>
+            <Pencil size={11} /> {editing ? 'Editando' : 'Corrigir'}
+          </button>
+        </div>
       </div>
 
+      {/* Enunciado */}
       <p style={{ color: C.textPrimary, fontSize: 15, lineHeight: 1.65, marginBottom: 20, fontWeight: 400 }}>{question.text}</p>
 
+      {/* Alternativas */}
       <div style={{ marginBottom: 16 }}>
         {Object.entries(question.options).map(([opt, text]) => (
           <button key={opt} onClick={() => !result && setSelected(opt)} style={optStyle(opt)}>
@@ -43,6 +74,7 @@ function QuestionCard({ question, onAnswer, result }) {
         ))}
       </div>
 
+      {/* Confirmar / Resultado */}
       {!result ? (
         <button onClick={() => selected && onAnswer(selected)} disabled={!selected}
           style={{ width: '100%', padding: '12px', background: selected ? C.accent : '#1a1a1a', color: selected ? '#000' : C.textDim, border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: selected ? 'pointer' : 'default' }}>
@@ -59,11 +91,55 @@ function QuestionCard({ question, onAnswer, result }) {
           {result.explanation && <p style={{ color: C.textSecondary, fontSize: 12, lineHeight: 1.6 }}>{result.explanation}</p>}
         </div>
       )}
+
+      {/* ── Painel de correção inline ────────────────────────────────────── */}
+      {editing && (
+        <div style={{ marginTop: 16, background: '#0a0e0a', border: `1px solid ${C.accent}33`, borderRadius: 12, padding: '16px 18px' }}>
+          <p style={{ color: C.accent, fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Corrigir gabarito</p>
+
+          {/* Seleção da letra correta */}
+          <p style={{ color: C.textSecondary, fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Resposta correta:</p>
+          <div style={{ display: 'flex', gap: 7, marginBottom: 10, flexWrap: 'wrap' }}>
+            {Object.keys(question.options).map(opt => (
+              <button key={opt} onClick={() => setEditCorrect(opt)}
+                style={{ padding: '7px 14px', background: editCorrect === opt ? C.accent : '#1a1a1a', color: editCorrect === opt ? '#000' : C.textMuted, border: `1px solid ${editCorrect === opt ? C.accent : C.border}`, borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                {opt}
+              </button>
+            ))}
+          </div>
+          <div style={{ background: C.accentDim, border: `1px solid ${C.accentBorder}`, borderRadius: 7, padding: '7px 11px', marginBottom: 14 }}>
+            <p style={{ color: C.accent, fontSize: 12 }}><strong>{editCorrect}:</strong> {question.options[editCorrect]}</p>
+          </div>
+
+          {/* Trecho da publicação */}
+          <p style={{ color: C.textSecondary, fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Trecho da publicação:</p>
+          <textarea
+            value={editExpl}
+            onChange={e => setEditExpl(e.target.value)}
+            placeholder='Ex: "Conforme IMO A.1045, item 2.1.3: os cabos laterais devem ter diâmetro mínimo de 18 mm..."'
+            style={{ width: '100%', minHeight: 90, background: '#111', border: `1px solid ${editExpl.trim().length >= 20 ? C.accent + '55' : C.border}`, borderRadius: 9, color: C.textPrimary, fontSize: 13, padding: '9px 12px', resize: 'vertical', outline: 'none', lineHeight: 1.6, boxSizing: 'border-box' }}
+          />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+            <p style={{ color: C.textDim, fontSize: 11 }}>{editExpl.length} chars · mín. 20</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setEditing(false)}
+                style={{ padding: '7px 14px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, color: C.textMuted, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                <X size={12} /> Cancelar
+              </button>
+              <button onClick={saveCorrection} disabled={saving || saved || editExpl.trim().length < 20}
+                style={{ padding: '7px 16px', background: saved ? '#16a34a' : (editExpl.trim().length < 20 || saving ? '#1a1a1a' : C.accent), color: saved ? '#fff' : (editExpl.trim().length < 20 || saving ? C.textDim : '#000'), border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 12, cursor: editExpl.trim().length < 20 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                {saved ? <><CheckCircle size={12} /> Salvo</> : saving ? 'Salvando...' : <><Save size={12} /> Salvar</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function Questions() {
+  const navigate = useNavigate()
   const [questions, setQuestions] = useState([])
   const [current, setCurrent] = useState(0)
   const [result, setResult] = useState(null)
@@ -159,9 +235,23 @@ export default function Questions() {
       </div>
 
       {questions.length === 0 ? (
-        <div style={{ ...card({ padding: 60, textAlign: 'center' }) }}>
-          <p style={{ color: C.textDim }}>Nenhuma questão encontrada com esses filtros.</p>
-        </div>
+        tab === 'bz' ? (
+          <div style={{ ...card({ padding: 48, textAlign: 'center' }) }}>
+            <BookMarked size={32} color={C.textDim} style={{ margin: '0 auto 14px' }} />
+            <p style={{ color: C.textSecondary, fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Nenhuma questão BZ importada ainda</p>
+            <p style={{ color: C.textDim, fontSize: 13, lineHeight: 1.6, maxWidth: 380, margin: '0 auto 20px' }}>
+              Vá em <strong style={{ color: C.textMuted }}>Cadernos</strong>, envie o PDF ou TXT do seu caderno BZ e clique em <strong style={{ color: C.textMuted }}>Importar questões exatas</strong>. As questões aparecem aqui automaticamente.
+            </p>
+            <button onClick={() => navigate('/question-books')}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '10px 22px', background: C.accent, color: '#000', border: 'none', borderRadius: 9, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+              Ir para Cadernos <ArrowRight size={14} />
+            </button>
+          </div>
+        ) : (
+          <div style={{ ...card({ padding: 60, textAlign: 'center' }) }}>
+            <p style={{ color: C.textDim }}>Nenhuma questão encontrada com esses filtros.</p>
+          </div>
+        )
       ) : (
         <div style={{ maxWidth: 720 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>

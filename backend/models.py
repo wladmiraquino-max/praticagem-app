@@ -138,3 +138,13 @@ class QuestionBook(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", foreign_keys=[user_id])
+
+
+class Publication(Base):
+    __tablename__ = "publications"
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    category = Column(String)
+    source = Column(String)
+    content = Column(Text)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

@@ -93,7 +93,7 @@ def generate_questions(
             subject=book.subject or "Geral",
             discipline="0",
             difficulty=qd.get("difficulty", "Médio"),
-            source=f"Caderno: {book.title}",
+            source=f"[caderno:{book.id}] {book.title}",
         )
         db.add(q)
         created += 1
@@ -151,7 +151,7 @@ def extract_exact_questions(
             subject=book.subject or "Arte Naval",
             discipline="0",
             difficulty=qd.get("difficulty", "Médio"),
-            source=qd.get("source", f"BZ — {book.title}"),
+            source=f"[caderno:{book.id}] " + qd.get("source", f"BZ — {book.title}"),
         )
         db.add(q)
         created += 1
@@ -164,6 +164,26 @@ def extract_exact_questions(
         "message": f"{created} questões extraídas e salvas com gabarito comentado original.",
         "total_generated": book.questions_generated,
     }
+
+
+@router.get("/{book_id}/questions", response_model=List[schemas.QuestionWithAnswer])
+def get_book_questions(
+    book_id: int,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Retorna todas as questões salvas de um caderno com gabarito comentado."""
+    book = db.query(models.QuestionBook).filter(
+        models.QuestionBook.id == book_id,
+        models.QuestionBook.user_id == current_user.id,
+    ).first()
+    if not book:
+        raise HTTPException(status_code=404, detail="Caderno não encontrado")
+
+    questions = db.query(models.Question).filter(
+        models.Question.source.like(f"[caderno:{book.id}]%")
+    ).all()
+    return questions
 
 
 @router.delete("/{book_id}")

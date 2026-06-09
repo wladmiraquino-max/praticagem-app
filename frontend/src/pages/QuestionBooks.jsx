@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import api from '../api'
-import { Upload, Cpu, Trash2, Sparkles, X, BookMarked, ChevronRight, CheckCircle } from 'lucide-react'
+import { Upload, Cpu, Trash2, Sparkles, X, BookMarked, ChevronRight, CheckCircle, BookOpen } from 'lucide-react'
 import { C, card } from '../theme'
 
 const SUBJECTS = [
@@ -12,7 +12,24 @@ function BookDetail({ book, onClose, onGenerate }) {
   const [count, setCount] = useState(10)
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
-  const [mode, setMode] = useState('extract') // 'extract' | 'generate'
+  const [mode, setMode] = useState('extract') // 'extract' | 'generate' | 'gabarito'
+  const [bookQuestions, setBookQuestions] = useState([])
+  const [gabaritoLoading, setGabaritoLoading] = useState(false)
+  const [expandedExplanations, setExpandedExplanations] = useState({})
+
+  const loadGabarito = async () => {
+    setGabaritoLoading(true)
+    try {
+      const r = await api.get(`/question-books/${book.id}/questions`)
+      setBookQuestions(r.data)
+    } catch {
+      setBookQuestions([])
+    } finally {
+      setGabaritoLoading(false) }
+  }
+
+  const toggleExplanation = (id) =>
+    setExpandedExplanations(prev => ({ ...prev, [id]: !prev[id] }))
 
   const extract = async () => {
     setLoading(true); setResult(null)
@@ -62,6 +79,13 @@ function BookDetail({ book, onClose, onGenerate }) {
               <p style={{ fontSize: 10, fontWeight: 400, marginTop: 3, color: mode === 'generate' ? C.accent : C.textDim }}>Cria novas questoes no mesmo estilo</p>
             </button>
           </div>
+          <button
+            onClick={() => { setMode('gabarito'); if (bookQuestions.length === 0) loadGabarito() }}
+            style={{ width: '100%', padding: '12px', background: mode === 'gabarito' ? 'rgba(250,204,21,0.1)' : '#1a1a1a', color: mode === 'gabarito' ? '#facc15' : C.textMuted, border: `1px solid ${mode === 'gabarito' ? '#facc15' : C.border}`, borderRadius: 10, fontWeight: 700, fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <BookOpen size={13} />
+            Gabarito Comentado
+            <span style={{ fontSize: 10, fontWeight: 400, color: mode === 'gabarito' ? '#facc15' : C.textDim }}>— ver todas as questoes com resposta e justificativa</span>
+          </button>
 
           {mode === 'extract' ? (
             <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '12px 14px' }}>
@@ -70,7 +94,7 @@ function BookDetail({ book, onClose, onGenerate }) {
                 A IA vai ler o caderno e extrair <strong style={{ color: C.textSecondary }}>todas as questoes exatamente como estao escritas</strong>, incluindo o gabarito comentado original. Ao responder no app, voce vera a justificativa completa do BZ.
               </p>
             </div>
-          ) : (
+          ) : mode === 'generate' ? (
             <div>
               <p style={{ color: C.textSecondary, fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Quantas questoes gerar?</p>
               <div style={{ display: 'flex', gap: 8 }}>
@@ -81,6 +105,78 @@ function BookDetail({ book, onClose, onGenerate }) {
                   </button>
                 ))}
               </div>
+            </div>
+          ) : (
+            /* ── Gabarito Comentado ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ color: C.textSecondary, fontSize: 13, fontWeight: 600 }}>
+                  {gabaritoLoading ? 'Carregando...' : `${bookQuestions.length} questão${bookQuestions.length !== 1 ? 'ões' : ''} salva${bookQuestions.length !== 1 ? 's' : ''}`}
+                </p>
+                <button onClick={loadGabarito} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.textDim, fontSize: 11, textDecoration: 'underline' }}>
+                  Atualizar
+                </button>
+              </div>
+
+              {gabaritoLoading && (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
+                  <Cpu size={18} color={C.textDim} style={{ animation: 'spin 1s linear infinite' }} />
+                </div>
+              )}
+
+              {!gabaritoLoading && bookQuestions.length === 0 && (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.border}`, borderRadius: 8, padding: '20px', textAlign: 'center' }}>
+                  <p style={{ color: C.textMuted, fontSize: 13 }}>Nenhuma questao salva ainda.</p>
+                  <p style={{ color: C.textDim, fontSize: 11, marginTop: 4 }}>Use "Importar questoes exatas" ou "Gerar questoes similares" primeiro.</p>
+                </div>
+              )}
+
+              {!gabaritoLoading && bookQuestions.length > 0 && (
+                <div style={{ maxHeight: 420, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingRight: 4 }}>
+                  {bookQuestions.map((q, idx) => (
+                    <div key={q.id} style={{ background: '#0d0d0d', border: `1px solid ${C.border}`, borderRadius: 10, padding: '14px 16px' }}>
+                      <p style={{ color: C.textDim, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', marginBottom: 6 }}>
+                        Q{idx + 1} · {q.difficulty} · {q.subject}
+                      </p>
+                      <p style={{ color: C.textPrimary, fontSize: 13, lineHeight: 1.6, marginBottom: 10 }}>{q.text}</p>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                        {Object.entries(q.options || {}).map(([letra, texto]) => {
+                          const isCorrect = letra === q.correct
+                          return (
+                            <div key={letra} style={{
+                              display: 'flex', gap: 8, alignItems: 'flex-start',
+                              background: isCorrect ? 'rgba(74,222,128,0.08)' : 'transparent',
+                              border: `1px solid ${isCorrect ? 'rgba(74,222,128,0.3)' : 'transparent'}`,
+                              borderRadius: 7, padding: isCorrect ? '5px 9px' : '4px 0',
+                            }}>
+                              <span style={{ fontWeight: 700, fontSize: 12, color: isCorrect ? '#4ade80' : C.textDim, flexShrink: 0, width: 16 }}>{letra}</span>
+                              <span style={{ fontSize: 12, color: isCorrect ? '#86efac' : C.textMuted, lineHeight: 1.5 }}>{texto}</span>
+                              {isCorrect && <CheckCircle size={13} color="#4ade80" style={{ marginLeft: 'auto', flexShrink: 0, marginTop: 2 }} />}
+                            </div>
+                          )
+                        })}
+                      </div>
+
+                      {q.explanation && (
+                        <div style={{ marginTop: 10 }}>
+                          <button
+                            onClick={() => toggleExplanation(q.id)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#facc15', fontSize: 11, fontWeight: 600, padding: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <BookOpen size={11} />
+                            {expandedExplanations[q.id] ? 'Ocultar justificativa' : 'Ver justificativa'}
+                          </button>
+                          {expandedExplanations[q.id] && (
+                            <div style={{ marginTop: 7, background: 'rgba(250,204,21,0.05)', border: '1px solid rgba(250,204,21,0.15)', borderRadius: 7, padding: '10px 12px' }}>
+                              <p style={{ color: '#fef08a', fontSize: 12, lineHeight: 1.7 }}>{q.explanation}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -94,19 +190,22 @@ function BookDetail({ book, onClose, onGenerate }) {
             <p style={{ color: '#f87171', fontSize: 12, background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.2)', borderRadius: 8, padding: '10px 12px' }}>{result.error}</p>
           )}
 
-          <button onClick={mode === 'extract' ? extract : generate} disabled={loading}
-            style={{ width: '100%', padding: '13px', background: loading ? '#1a1a1a' : C.accent, color: loading ? C.textMuted : '#000', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            {loading
-              ? <><Cpu size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processando...</>
-              : mode === 'extract'
-                ? <><Sparkles size={14} /> Importar questoes do caderno</>
-                : <><Sparkles size={14} /> Gerar {count} questoes</>
-            }
-          </button>
-
-          <p style={{ color: C.textDim, fontSize: 11, textAlign: 'center' }}>
-            As questoes ficam disponiveis na aba <strong style={{ color: C.textMuted }}>Questoes</strong> do app.
-          </p>
+          {mode !== 'gabarito' && (
+            <>
+              <button onClick={mode === 'extract' ? extract : generate} disabled={loading}
+                style={{ width: '100%', padding: '13px', background: loading ? '#1a1a1a' : C.accent, color: loading ? C.textMuted : '#000', border: 'none', borderRadius: 10, fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                {loading
+                  ? <><Cpu size={14} style={{ animation: 'spin 1s linear infinite' }} /> Processando...</>
+                  : mode === 'extract'
+                    ? <><Sparkles size={14} /> Importar questoes do caderno</>
+                    : <><Sparkles size={14} /> Gerar {count} questoes</>
+                }
+              </button>
+              <p style={{ color: C.textDim, fontSize: 11, textAlign: 'center' }}>
+                As questoes ficam disponiveis na aba <strong style={{ color: C.textMuted }}>Questoes</strong> do app.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

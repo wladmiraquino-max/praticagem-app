@@ -46,6 +46,10 @@ class AnswerSubmit(BaseModel):
     question_id: int
     selected: str
 
+class QuestionCorrection(BaseModel):
+    correct: str
+    explanation: str
+
 class AnswerResult(BaseModel):
     is_correct: bool
     correct: str

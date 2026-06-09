@@ -1,6 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, LogOut, Anchor, BookMarked } from 'lucide-react'
+import { LayoutDashboard, BookOpen, ClipboardList, Library, Map, MessageSquare, Network, SlidersHorizontal, BarChart2, LogOut, Anchor, BookMarked, Settings, BookText } from 'lucide-react'
 import { C } from '../theme'
 
 const mainNav = [
@@ -10,12 +10,14 @@ const mainNav = [
   { to: '/materials', icon: Library, label: 'Materiais' },
   { to: '/question-books', icon: BookMarked, label: 'Cadernos' },
   { to: '/trail', icon: Map, label: 'Trilha de Estudos' },
+  { to: '/publications', icon: BookText, label: 'Publicações' },
   { to: '/tutor', icon: MessageSquare, label: 'Tutor IA' },
 ]
 const analysisNav = [
   { to: '/performance', icon: BarChart2, label: 'Desempenho' },
   { to: '/network', icon: Network, label: 'Mapa do Conhecimento' },
   { to: '/preferences', icon: SlidersHorizontal, label: 'Preferências' },
+  { to: '/settings', icon: Settings, label: 'Configurações' },
 ]
 
 export default function Layout({ children }) {

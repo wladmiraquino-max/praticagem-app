@@ -102,6 +102,23 @@ def list_subjects(db: Session = Depends(get_db), current_user: models.User = Dep
     return [s[0] for s in subjects if s[0]]
 
 
+@router.patch("/{question_id}/correct")
+def correct_question(
+    question_id: int,
+    payload: schemas.QuestionCorrection,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Corrige o gabarito e a explicação de uma questão."""
+    q = db.query(models.Question).filter(models.Question.id == question_id).first()
+    if not q:
+        raise HTTPException(status_code=404, detail="Questão não encontrada")
+    q.correct = payload.correct.upper().strip()
+    q.explanation = payload.explanation.strip()
+    db.commit()
+    return {"ok": True, "question_id": question_id, "correct": q.correct}
+
+
 @router.get("/{question_id}", response_model=schemas.QuestionOut)
 def get_question(question_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     q = db.query(models.Question).filter(models.Question.id == question_id).first()

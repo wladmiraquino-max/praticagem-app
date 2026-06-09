@@ -3,6 +3,32 @@ import os
 import tempfile
 
 
+def extract_text_with_ocr(raw_bytes: bytes, max_pages: int = 40) -> str:
+    """Extrai texto de PDF digitalizado usando PyMuPDF + Tesseract OCR."""
+    try:
+        import fitz
+        import pytesseract
+        from PIL import Image
+
+        os.environ.setdefault("TESSDATA_PREFIX", os.path.expanduser("~/tessdata"))
+        pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+
+        doc = fitz.open(stream=raw_bytes, filetype="pdf")
+        text = ""
+        for i, page in enumerate(doc):
+            if i >= max_pages:
+                break
+            mat = fitz.Matrix(200 / 72, 200 / 72)
+            pix = page.get_pixmap(matrix=mat)
+            img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+            t = pytesseract.image_to_string(img, lang="por+eng")
+            text += t + "\n"
+        doc.close()
+        return text
+    except Exception:
+        return ""
+
+
 def extract_text_from_pdf(raw_bytes: bytes, max_pages: int = 50) -> str:
     """Tenta extrair texto de um PDF usando pdfplumber e pypdf como fallback."""
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
@@ -81,12 +107,14 @@ def extract_text(raw_bytes: bytes, filename: str, max_pages: int = 50) -> tuple[
     if fname.endswith(".pdf"):
         text = extract_text_from_pdf(raw_bytes, max_pages)
         if not text.strip():
+            # Tenta OCR como fallback para PDFs digitalizados
+            text = extract_text_with_ocr(raw_bytes, max_pages)
+        if not text.strip():
             return "", (
                 "Não foi possível extrair texto deste PDF. "
-                "Ele pode ser digitalizado (imagem). "
+                "Ele pode ser digitalizado (imagem) e o OCR também não funcionou. "
                 "Tente: 1) Salvar como TXT no seu leitor de PDF, "
-                "2) Usar o Google Drive (link) se o PDF original tiver texto, "
-                "ou 3) Copiar e colar o conteúdo em um arquivo .txt."
+                "ou 2) Copiar e colar o conteúdo em um arquivo .txt."
             )
         return text, None
 

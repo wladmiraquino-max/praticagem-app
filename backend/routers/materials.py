@@ -147,38 +147,30 @@ def _parse_drive_url(url: str) -> tuple[str, bool]:
 
 def _read_file_content(path: str) -> str:
     if path.lower().endswith(".pdf"):
-        content = ""
-        with pdfplumber.open(path) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    content += text + "\n"
-        return content
+        with open(path, "rb") as f:
+            raw = f.read()
+        from pdf_utils import extract_text_from_pdf, extract_text_with_ocr
+        text = extract_text_from_pdf(raw, max_pages=40)
+        if not text.strip():
+            text = extract_text_with_ocr(raw, max_pages=30)
+        return text
     with open(path, "r", encoding="utf-8", errors="ignore") as f:
         return f.read()
 
 
 def _save_material(db, user_id: int, filename: str, content: str, subject: str | None, source_prefix: str) -> models.Material:
     title = os.path.splitext(os.path.basename(filename))[0].replace("_", " ").replace("-", " ").title()
-    processed = ai_service.process_material(title, content, subject or "Praticagem")
     material = models.Material(
         user_id=user_id,
         title=title,
         subject=subject,
         source=f"{source_prefix}:{filename}",
         content=content[:20000],
-        summary=processed.get("summary", ""),
-        mnemonic=processed.get("mnemonic", ""),
-        sections=processed.get("sections", []),
+        summary="",
+        mnemonic="",
+        sections=[],
     )
     db.add(material)
-    for concept in processed.get("concepts", [])[:10]:
-        node = db.query(models.KnowledgeNode).filter(
-            models.KnowledgeNode.user_id == user_id,
-            models.KnowledgeNode.concept == concept,
-        ).first()
-        if not node:
-            db.add(models.KnowledgeNode(user_id=user_id, concept=concept, subject=subject or "Geral", mastery=0))
     return material
 
 

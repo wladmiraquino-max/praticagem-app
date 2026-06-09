@@ -13,6 +13,8 @@ import Network from './pages/Network'
 import Performance from './pages/Performance'
 import Preferences from './pages/Preferences'
 import QuestionBooks from './pages/QuestionBooks'
+import Settings from './pages/Settings'
+import Publications from './pages/Publications'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -40,11 +42,13 @@ export default function App() {
           <Route path="/simulados" element={<PrivateRoute><Simulados /></PrivateRoute>} />
           <Route path="/materials" element={<PrivateRoute><Materials /></PrivateRoute>} />
           <Route path="/trail" element={<PrivateRoute><StudyTrail /></PrivateRoute>} />
+          <Route path="/publications" element={<PrivateRoute><Publications /></PrivateRoute>} />
           <Route path="/tutor" element={<PrivateRoute><Tutor /></PrivateRoute>} />
           <Route path="/network" element={<PrivateRoute><Network /></PrivateRoute>} />
           <Route path="/performance" element={<PrivateRoute><Performance /></PrivateRoute>} />
           <Route path="/preferences" element={<PrivateRoute><Preferences /></PrivateRoute>} />
           <Route path="/question-books" element={<PrivateRoute><QuestionBooks /></PrivateRoute>} />
+          <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
