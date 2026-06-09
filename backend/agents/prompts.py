@@ -1816,16 +1816,20 @@ AGENT_PROMPTS = {
     "12":  AGENT_SHM,
     "13":  AGENT_SIMULADO,
     "14":  AGENT_VII_CONHECIMENTOS,
+    "VII": AGENT_VII_CONHECIMENTOS,
     "orchestrator": ORCHESTRATOR_SYSTEM,
 }
 
 AGENT_NAMES = {
+    # ── 7 agentes oficiais PSCPP (Anexo 2-B) ──────────────────────────────────
     "I":   "Manobrabilidade do Navio",
-    "II":  "Arte Naval",
+    "II":  "Arte Naval e Shiphandling",
     "III": "Navegação em Águas Restritas",
     "IV":  "Legislação e Regulamentação",
-    "V":   "Meteorologia e Oceanografia",
+    "V":   "Meteorologia, Oceanografia e Navegação",
     "VI":  "Comunicações",
+    "VII": "Conhecimentos Gerais",
+    # ── agentes legados (mantidos para compatibilidade interna) ───────────────
     "1":   "Arte Naval",
     "2":   "Comunicação",
     "3":   "Legislação",

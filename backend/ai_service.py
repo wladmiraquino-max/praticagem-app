@@ -24,19 +24,28 @@ def _require_ai():
         raise RuntimeError("IA indisponivel: configure ANTHROPIC_API_KEY para usar funcionalidades de IA.")
 
 SUBJECT_MAP = {
-    "1": "Manobra",
-    "2": "Arte Naval",
-    "3": "Arquitetura Naval",
-    "4": "Meteorologia e Oceanografia",
-    "5": "Legislação Marítima",
-    "6": "Navegação e Radar",
-    "7": "Comunicações",
-    "8": "Segurança da Navegação",
-    "9": "Normas e Publicações",
-    "10": "Gestão e Procedimentos",
-    "11": "Sistemas e Equipamentos",
-    "12": "Conhecimentos Portuários",
-    "13": "Outros Assuntos",
+    # ── 7 seções oficiais Anexo 2-B ───────────────────────────────────────────
+    "I":   "Manobrabilidade do Navio",
+    "II":  "Arte Naval e Shiphandling",
+    "III": "Navegação em Águas Restritas",
+    "IV":  "Legislação e Regulamentação",
+    "V":   "Meteorologia, Oceanografia e Navegação",
+    "VI":  "Comunicações",
+    "VII": "Conhecimentos Gerais",
+    # ── mapeamento de compatibilidade (agentes legados → seção oficial) ───────
+    "1":  "Arte Naval e Shiphandling",
+    "2":  "Comunicações",
+    "3":  "Legislação e Regulamentação",
+    "4":  "Meteorologia, Oceanografia e Navegação",
+    "5":  "Navegação em Águas Restritas",
+    "6":  "Navegação em Águas Restritas",
+    "7":  "Arte Naval e Shiphandling",
+    "8":  "Manobrabilidade do Navio",
+    "9":  "Manobrabilidade do Navio",
+    "10": "Arte Naval e Shiphandling",
+    "11": "Navegação em Águas Restritas",
+    "12": "Arte Naval e Shiphandling",
+    "13": "Conhecimentos Gerais",
     "14": "Conhecimentos Gerais",
 }
 

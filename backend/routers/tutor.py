@@ -7,12 +7,13 @@ from sqlalchemy.orm import Session
 router = APIRouter(prefix="/api/tutor", tags=["tutor"])
 
 
+OFFICIAL_AGENTS = ["I", "II", "III", "IV", "V", "VI", "VII"]
+
 @router.get("/agents")
 def list_agents(current_user: models.User = Depends(get_current_user)):
     agents = []
-    for key, name in ai_service.AGENT_NAMES.items():
-        if key == "orchestrator" or not key.isdigit():
-            continue
+    for key in OFFICIAL_AGENTS:
+        name = ai_service.AGENT_NAMES.get(key, key)
         agents.append({
             "id": key,
             "name": name,

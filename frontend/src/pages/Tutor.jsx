@@ -37,7 +37,7 @@ export default function Tutor() {
       <div style={{ width: 220, background: '#0e0e0e', borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column' }}>
         <div style={{ padding: '16px 14px 12px', borderBottom: `1px solid ${C.border}` }}>
           <p style={{ color: C.textPrimary, fontSize: 13, fontWeight: 600 }}>Agentes Especialistas</p>
-          <p style={{ color: C.textDim, fontSize: 11, marginTop: 2 }}>14 agentes disponíveis</p>
+          <p style={{ color: C.textDim, fontSize: 11, marginTop: 2 }}>7 agentes oficiais PSCPP</p>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', padding: '6px 8px' }}>
           {agents.map(a => (
