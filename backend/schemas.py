@@ -96,6 +96,10 @@ class TutorMessage(BaseModel):
     message: str
     history: Optional[List[Dict[str, str]]] = []
 
+class TutorHubMessage(BaseModel):
+    message: str
+    history: Optional[List[Dict[str, str]]] = []
+
 
 # ── Progress ──────────────────────────────────────────────────────────────────
 class ProgressStats(BaseModel):

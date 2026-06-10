@@ -24,21 +24,82 @@ def _require_ai():
         raise RuntimeError("IA indisponivel: configure ANTHROPIC_API_KEY para usar funcionalidades de IA.")
 
 SUBJECT_MAP = {
-    "1": "Manobra",
-    "2": "Arte Naval",
-    "3": "Arquitetura Naval",
-    "4": "Meteorologia e Oceanografia",
-    "5": "Legislação Marítima",
-    "6": "Navegação e Radar",
-    "7": "Comunicações",
-    "8": "Segurança da Navegação",
-    "9": "Normas e Publicações",
-    "10": "Gestão e Procedimentos",
-    "11": "Sistemas e Equipamentos",
-    "12": "Conhecimentos Portuários",
-    "13": "Outros Assuntos",
+    # ── 7 seções oficiais Anexo 2-B ───────────────────────────────────────────
+    "I":   "Manobrabilidade do Navio",
+    "II":  "Arte Naval e Shiphandling",
+    "III": "Navegação em Águas Restritas",
+    "IV":  "Legislação e Regulamentação",
+    "V":   "Meteorologia, Oceanografia e Navegação",
+    "VI":  "Comunicações",
+    "VII": "Conhecimentos Gerais",
+    # ── mapeamento de compatibilidade (agentes legados → seção oficial) ───────
+    "1":  "Arte Naval e Shiphandling",
+    "2":  "Comunicações",
+    "3":  "Legislação e Regulamentação",
+    "4":  "Meteorologia, Oceanografia e Navegação",
+    "5":  "Navegação em Águas Restritas",
+    "6":  "Navegação em Águas Restritas",
+    "7":  "Arte Naval e Shiphandling",
+    "8":  "Manobrabilidade do Navio",
+    "9":  "Manobrabilidade do Navio",
+    "10": "Arte Naval e Shiphandling",
+    "11": "Navegação em Águas Restritas",
+    "12": "Arte Naval e Shiphandling",
+    "13": "Conhecimentos Gerais",
     "14": "Conhecimentos Gerais",
 }
+
+HUB_ROUTER_PROMPT = """Você é o Roteador do HUB ADMINISTRADOR PSCPP. Analise a pergunta e identifique qual dos 7 agentes oficiais deve responder.
+
+AGENTES OFICIAIS:
+I   — Manobrabilidade do Navio (squat, UKC, pivot point, efeito de banco, interação entre navios, hidrodinâmica, fundo, canais)
+II  — Arte Naval e Shiphandling (arquitetura naval, estabilidade, trim, hélice, leme, deflexão, atracação, rebocadores, linhas)
+III — Navegação em Águas Restritas (carta náutica, radar, ECDIS, ARPA, GPS, AIS, pilotagem, ancoragem, correntes, marés, CPA, TCPA)
+IV  — Legislação e Regulamentação (RIPEAM, CIRM, NORMAM, Lei da Praticagem, Direito Marítimo, SOLAS, STCW, COLREG)
+V   — Meteorologia, Oceanografia e Navegação (meteorologia, previsão de tempo, oceanografia, ondas, correntes oceânicas)
+VI  — Comunicações (SMSSM, GMDSS, VHF, DSC, NAVTEX, MF/HF, radiotelefonia, publicações náuticas, avisos aos navegantes)
+VII — Conhecimentos Gerais (BRM, fatores humanos, liderança, MARPOL, segurança, ISPS, portos brasileiros, história da praticagem)
+
+Retorne SOMENTE um JSON válido, sem markdown, sem explicação extra:
+{"agent_id": "I", "rationale": "motivo em uma frase curta"}"""
+
+
+def route_question(message: str) -> dict:
+    """Identifica qual agente oficial deve responder a pergunta (roteamento HUB)."""
+    _require_ai()
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=120,
+        system=HUB_ROUTER_PROMPT,
+        messages=[{"role": "user", "content": message}],
+    )
+    text = response.content[-1].text.strip()
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[4:]
+    try:
+        data = json.loads(text)
+        if data.get("agent_id") not in ["I", "II", "III", "IV", "V", "VI", "VII"]:
+            data["agent_id"] = "I"
+        return data
+    except Exception:
+        return {"agent_id": "I", "rationale": "roteamento padrão"}
+
+
+def hub_chat(message: str, history: list[dict]) -> dict:
+    """HUB MASTER: roteia ao agente oficial correto e retorna resposta + metadados."""
+    route = route_question(message)
+    agent_id = route.get("agent_id", "I")
+    response_text = chat_with_agent(agent_id=agent_id, message=message, history=history)
+    return {
+        "agent_id": agent_id,
+        "agent_name": AGENT_NAMES.get(agent_id, agent_id),
+        "subject": SUBJECT_MAP.get(agent_id, agent_id),
+        "response": response_text,
+        "routed_by": "HUB",
+        "rationale": route.get("rationale", ""),
+    }
 
 
 def chat_with_agent(agent_id: str, message: str, history: list[dict]) -> str:

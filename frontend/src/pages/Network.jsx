@@ -3,7 +3,22 @@ import api from '../api'
 import { Brain, Target } from 'lucide-react'
 import { C, card } from '../theme'
 
-const COLORS = { 'Manobra':'#ef4444','Arte Naval':'#f97316','Arquitetura Naval':'#eab308','Meteorologia e Oceanografia':'#22c55e','Legislação Marítima':'#3b82f6','Navegação e Radar':'#8b5cf6','Comunicações':'#ec4899','Segurança da Navegação':'#14b8a6','Normas e Publicações':C.accent,'Gestão e Procedimentos':'#10b981','Sistemas e Equipamentos':'#6366f1','Conhecimentos Portuários':'#84cc16','Outros Assuntos':'#94a3b8','Conhecimentos Gerais':'#0ea5e9' }
+const COLORS = {
+  'Manobrabilidade do Navio':          '#ef4444',
+  'Arte Naval e Shiphandling':          '#f97316',
+  'Navegação em Águas Restritas':       '#eab308',
+  'Legislação e Regulamentação':        '#22c55e',
+  'Meteorologia, Oceanografia e Navegação': '#3b82f6',
+  'Comunicações':                       '#8b5cf6',
+  'Conhecimentos Gerais':               '#ec4899',
+  // compatibilidade com nomes antigos no banco
+  'Manobra':'#ef4444','Arte Naval':'#f97316','Arquitetura Naval':'#eab308',
+  'Meteorologia e Oceanografia':'#3b82f6','Legislação Marítima':'#22c55e',
+  'Navegação e Radar':'#eab308','Segurança da Navegação':'#14b8a6',
+  'Normas e Publicações':C.accent,'Gestão e Procedimentos':'#10b981',
+  'Sistemas e Equipamentos':'#6366f1','Conhecimentos Portuários':'#84cc16',
+  'Outros Assuntos':'#94a3b8',
+}
 
 export default function Network() {
   const [knowledge, setKnowledge] = useState([])
@@ -12,7 +27,7 @@ export default function Network() {
   const dominated = knowledge.filter(k => k.mastery >= 80).length
   const building = knowledge.filter(k => k.mastery >= 40 && k.mastery < 80).length
   const weak = knowledge.filter(k => k.mastery > 0 && k.mastery < 40).length
-  const coverage = knowledge.length > 0 ? (knowledge.length / 14) * 100 : 0
+  const coverage = knowledge.length > 0 ? (knowledge.length / 7) * 100 : 0
   const avg = knowledge.length ? knowledge.reduce((s, k) => s + k.mastery, 0) / knowledge.length : 0
 
   return (
