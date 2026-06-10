@@ -148,3 +148,20 @@ class Publication(Base):
     source = Column(String)
     content = Column(Text)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class CitationEntry(Base):
+    """Base de provas bibliográficas — alimentada incrementalmente.
+    Cada entrada corresponde a um trecho rastreável de uma obra oficial do PSCPP.
+    """
+    __tablename__ = "citation_entries"
+    id = Column(Integer, primary_key=True)
+    agent_id = Column(String, nullable=False)     # "I" … "VII"
+    work = Column(String, nullable=False)         # "Crenshaw — Naval Shiphandling"
+    edition = Column(String)                      # "4ª Ed., 1975"
+    chapter = Column(String)                      # "Cap. 2"
+    section = Column(String)                      # "Seção 3 — Forces Affecting the Ship"
+    excerpt = Column(Text)                        # trecho citado verbatim
+    concept = Column(String)                      # conceito-chave: "squat", "UKC", "pivot point"
+    validated = Column(Boolean, default=False)    # revisão humana confirmada
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

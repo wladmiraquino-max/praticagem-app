@@ -49,6 +49,80 @@ SUBJECT_MAP = {
     "14": "Conhecimentos Gerais",
 }
 
+
+# ─── Palavras-chave por agente para busca automática de publicações ────────────
+AGENT_PUB_KEYWORDS: dict[str, list[str]] = {
+    "I":   ["manobra", "shiphandling", "manobrabilidade", "squat"],
+    "II":  ["arte naval", "naval", "estabilidade", "trim", "rebocador"],
+    "III": ["navegação", "radar", "ecdis", "navegacao", "arpa"],
+    "IV":  ["legislação", "normam", "ripeam", "legislacao", "regulamentação"],
+    "V":   ["meteorologia", "oceanografia", "tempo", "vento"],
+    "VI":  ["comunicação", "gmdss", "vhf", "comunicacao", "rádio"],
+    "VII": ["conhecimentos gerais", "brm", "marpol", "ism", "stcw"],
+}
+
+# ─── Camada de governança injetada em todo prompt governado ───────────────────
+GOVERNANCE_LAYER = """
+
+═══════════════════════════════════════════════════════════
+CAMADA DE GOVERNANÇA — HUB ADMINISTRADOR PSCPP
+═══════════════════════════════════════════════════════════
+
+REGRA SUPREMA:
+NUNCA INVENTE. NUNCA COMPLETE LACUNAS COM CONHECIMENTO PRÓPRIO.
+Se a informação não estiver (a) nas Referências Primárias deste agente
+ou (b) nos Documentos Adicionais abaixo, responda exatamente:
+"Informação não localizada claramente na bibliografia oficial do PSCPP."
+
+HIERARQUIA DE AUTORIDADE:
+1. Conteúdo Programático do Edital PSCPP
+2. Referências Primárias declaradas neste prompt
+3. Documentos Adicionais injetados abaixo (quando presentes)
+4. Resoluções IMO (MSC, A., FAL.) / SOLAS / COLREG / RIPEAM
+5. NORMAM / Legislação Federal Brasileira
+
+AUDITORIA INTERNA — execute ANTES de cada resposta:
+① O conteúdo técnico está nas Referências Primárias declaradas?
+② Todos os números, distâncias, pesos e procedimentos têm origem comprovada?
+③ Não houve extrapolação além do que a fonte sustenta?
+④ A resposta está alinhada ao Anexo 2-B do edital?
+Se qualquer resposta for NÃO → aplicar REGRA SUPREMA acima.
+
+REGRA DE PARCIALIDADE:
+Se parte da resposta for comprovada e parte não:
+- Responda apenas a parte comprovada
+- Indique: "Informação parcial — [detalhe] não localizado na bibliografia disponível."
+
+FORMATO OBRIGATÓRIO DE RESPOSTA:
+[Conteúdo técnico completo dentro do que a bibliografia suporta]
+
+**Referência:** [Obra — Cap./Seção] ou "Não localizado na bibliografia disponível"
+**Status de Auditoria:** VALIDADO | PARCIAL | RECUSADO
+"""
+
+# ─── Prompt do Auditor Externo (Fase 2 — chamada separada, ainda não ativa) ───
+AUDITOR_PROMPT = """Você é o AGENTE AUDITOR do HUB PSCPP. Verifica respostas do especialista.
+
+PERGUNTA ORIGINAL: {question}
+ESPECIALISTA: {agent_name}
+RESPOSTA DO ESPECIALISTA: {specialist_response}
+CONTEXTO BIBLIOGRÁFICO DISPONÍVEL: {pub_context}
+
+VERIFICAÇÕES:
+1. A resposta cita publicação rastreável? (sim/não)
+2. Números/dados técnicos confirmados no contexto? (sim/não/na)
+3. Houve extrapolação? (sim/não)
+4. Capítulo/seção identificável? (sim/não)
+5. Alinhamento ao Anexo 2-B? (sim/não)
+
+REGRA: se pub_context vazio, não bloqueie automaticamente — avalie rastreabilidade ao edital.
+REGRA: números específicos sem confirmação no contexto → REVISAR.
+REGRA: após 2 ciclos sem VALIDADO → BLOQUEADO com frase oficial de recusa.
+
+Retorne SOMENTE JSON válido:
+{{"verdict":"VALIDADO","notes":"razão","citation_found":true,"extrapolation_detected":false,"revision_instruction":""}}"""
+
+
 HUB_ROUTER_PROMPT = """Você é o Roteador do HUB ADMINISTRADOR PSCPP. Analise a pergunta e identifique qual dos 7 agentes oficiais deve responder.
 
 AGENTES OFICIAIS:
@@ -88,7 +162,7 @@ def route_question(message: str) -> dict:
 
 
 def hub_chat(message: str, history: list[dict]) -> dict:
-    """HUB MASTER: roteia ao agente oficial correto e retorna resposta + metadados."""
+    """HUB MASTER legado: mantido para compatibilidade interna. Use hub_chat_governed via /tutor/hub."""
     route = route_question(message)
     agent_id = route.get("agent_id", "I")
     response_text = chat_with_agent(agent_id=agent_id, message=message, history=history)
@@ -118,6 +192,70 @@ def chat_with_agent(agent_id: str, message: str, history: list[dict]) -> str:
     return response.content[-1].text
 
 
+def chat_with_agent_governed(
+    agent_id: str,
+    message: str,
+    history: list[dict],
+    pub_context: str = "",
+) -> str:
+    """Agente com camada de governança + contexto bibliográfico injetado.
+    Usa o prompt original do agente como base e acrescenta as regras de auditoria.
+    """
+    _require_ai()
+    base_prompt = AGENT_PROMPTS.get(agent_id, AGENT_PROMPTS.get("orchestrator", ""))
+
+    docs_section = ""
+    if pub_context:
+        docs_section = f"\n\n═══ DOCUMENTOS ADICIONAIS (recuperados automaticamente) ═══\n{pub_context}\n═══ FIM DOS DOCUMENTOS ═══"
+
+    full_system = base_prompt + GOVERNANCE_LAYER + docs_section
+    system = [{"type": "text", "text": full_system, "cache_control": {"type": "ephemeral"}}]
+
+    messages = list(history) + [{"role": "user", "content": message}]
+    response = client.messages.create(
+        model=MODEL,
+        max_tokens=4096,
+        system=system,
+        messages=messages,
+    )
+    return response.content[-1].text
+
+
+def hub_chat_governed(
+    agent_id: str,
+    route: dict,
+    message: str,
+    history: list[dict],
+    pub_context: str = "",
+) -> dict:
+    """HUB MASTER governado: usa o agente especialista com camada de governança
+    e contexto bibliográfico injetado automaticamente pelo roteador.
+    Substitui hub_chat() para toda comunicação via /tutor/hub.
+    """
+    response_text = chat_with_agent_governed(
+        agent_id=agent_id,
+        message=message,
+        history=history,
+        pub_context=pub_context,
+    )
+    audit_status = "VALIDADO"
+    if "RECUSADO" in response_text.upper() or "não localizada claramente" in response_text.lower():
+        audit_status = "RECUSADO"
+    elif "PARCIAL" in response_text.upper() or "parcial" in response_text.lower():
+        audit_status = "PARCIAL"
+
+    return {
+        "agent_id": agent_id,
+        "agent_name": AGENT_NAMES.get(agent_id, agent_id),
+        "subject": SUBJECT_MAP.get(agent_id, agent_id),
+        "response": response_text,
+        "routed_by": "HUB",
+        "rationale": route.get("rationale", ""),
+        "audit_status": audit_status,
+        "pub_context_used": bool(pub_context),
+    }
+
+
 def generate_questions_from_content(content: str, subject: str, count: int = 5) -> list[dict]:
     _require_ai()
     """Gera questões de múltipla escolha a partir de um texto."""
@@ -144,7 +282,6 @@ Retorne APENAS um JSON válido com esta estrutura (sem markdown, sem explicaçã
         messages=[{"role": "user", "content": prompt}],
     )
     text = response.content[-1].text.strip()
-    # Remove markdown code fences if present
     if text.startswith("```"):
         text = text.split("```")[1]
         if text.startswith("json"):
@@ -294,7 +431,6 @@ def extract_questions_from_caderno(content: str, subject: str) -> list[dict]:
     if len(content) <= CHUNK_SIZE:
         return _call_extract_questions(content)
 
-    # Arquivo grande: divide em chunks e deduplica por texto de questão
     all_questions = []
     seen_texts = set()
     start = 0
@@ -309,7 +445,7 @@ def extract_questions_from_caderno(content: str, subject: str) -> list[dict]:
                 all_questions.append(q)
         if end >= len(content):
             break
-        start = end - OVERLAP  # sobreposição para não perder questões na fronteira
+        start = end - OVERLAP
 
     return all_questions
 

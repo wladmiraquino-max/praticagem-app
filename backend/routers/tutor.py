@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import or_
 from database import get_db
 from auth import get_current_user
 import models, schemas, ai_service
@@ -8,6 +9,25 @@ router = APIRouter(prefix="/api/tutor", tags=["tutor"])
 
 
 OFFICIAL_AGENTS = ["I", "II", "III", "IV", "V", "VI", "VII"]
+
+
+def _fetch_pub_context(agent_id: str, db: Session) -> str:
+    """Busca publicações relevantes para o agente e retorna texto formatado para injeção."""
+    keywords = ai_service.AGENT_PUB_KEYWORDS.get(agent_id, [])
+    if not keywords:
+        return ""
+    filters = []
+    for kw in keywords[:3]:
+        filters.append(models.Publication.category.ilike(f"%{kw}%"))
+        filters.append(models.Publication.title.ilike(f"%{kw}%"))
+    pubs = db.query(models.Publication).filter(or_(*filters)).limit(3).all()
+    if not pubs:
+        return ""
+    return "\n\n---\n\n".join(
+        f"[{p.category} — {p.title}]\n{(p.content or '')[:3000]}"
+        for p in pubs
+    )
+
 
 @router.get("/agents")
 def list_agents(current_user: models.User = Depends(get_current_user)):
@@ -54,11 +74,18 @@ def hub_chat(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    """HUB MASTER: roteia automaticamente ao agente oficial correto."""
+    """HUB MASTER governado: roteia ao agente correto, injeta publicações
+    relevantes automaticamente e aplica camada de governança bibliográfica."""
     try:
-        result = ai_service.hub_chat(
+        route = ai_service.route_question(payload.message)
+        agent_id = route.get("agent_id", "I")
+        pub_context = _fetch_pub_context(agent_id, db)
+        result = ai_service.hub_chat_governed(
+            agent_id=agent_id,
+            route=route,
             message=payload.message,
             history=payload.history or [],
+            pub_context=pub_context,
         )
         return result
     except Exception as e:
